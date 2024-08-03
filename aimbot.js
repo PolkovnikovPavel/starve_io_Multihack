@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Multihack by setorg V6
+// @name         Multihack by setorg V8
 // @namespace    http://tampermonkey.net/
 // @version      2024-05-20
 // @description  Всё что нужно для реального пацана
@@ -9,6 +9,7 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 /* workerTimers */ ! function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports) : "function" == typeof define && define.amd ? define(["exports"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).fastUniqueNumbers = {}) }(this, function (e) { "use strict"; var t, r = void 0 === Number.MAX_SAFE_INTEGER ? 9007199254740991 : Number.MAX_SAFE_INTEGER, n = new WeakMap, i = function (e, t) { return function (n) { var i = t.get(n), o = void 0 === i ? n.size : i < 1073741824 ? i + 1 : 0; if (!n.has(o)) return e(n, o); if (n.size < 536870912) { for (; n.has(o);) o = Math.floor(1073741824 * Math.random()); return e(n, o) } if (n.size > r) throw new Error("Congratulations, you created a collection of unique numbers which uses all available integers!"); for (; n.has(o);) o = Math.floor(Math.random() * r); return e(n, o) } }((t = n, function (e, r) { return t.set(e, r), r }), n), o = function (e) { return function (t) { var r = e(t); return t.add(r), r } }(i); e.addUniqueNumber = o, e.generateUniqueNumber = i, Object.defineProperty(e, "__esModule", { value: !0 }) }), function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports, require("fast-unique-numbers")) : "function" == typeof define && define.amd ? define(["exports", "fast-unique-numbers"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).workerTimersBroker = {}, e.fastUniqueNumbers) }(this, function (e, t) { "use strict"; e.load = function (e) { var r = new Map([[0, function () { }]]), n = new Map([[0, function () { }]]), i = new Map, o = new Worker(e); o.addEventListener("message", function (e) { var t = e.data; if (function (e) { return void 0 !== e.method && "call" === e.method }(t)) { var o = t.params, a = o.timerId, s = o.timerType; if ("interval" === s) { var u = r.get(a); if ("number" == typeof u) { var d = i.get(u); if (void 0 === d || d.timerId !== a || d.timerType !== s) throw new Error("The timer is in an undefined state.") } else { if (void 0 === u) throw new Error("The timer is in an undefined state."); u() } } else if ("timeout" === s) { var f = n.get(a); if ("number" == typeof f) { var l = i.get(f); if (void 0 === l || l.timerId !== a || l.timerType !== s) throw new Error("The timer is in an undefined state.") } else { if (void 0 === f) throw new Error("The timer is in an undefined state."); f(), n.delete(a) } } } else { if (! function (e) { return null === e.error && "number" == typeof e.id }(t)) { var m = t.error.message; throw new Error(m) } var c = t.id, p = i.get(c); if (void 0 === p) throw new Error("The timer is in an undefined state."); var v = p.timerId, h = p.timerType; i.delete(c), "interval" === h ? r.delete(v) : n.delete(v) } }); return { clearInterval: function (e) { var n = t.generateUniqueNumber(i); i.set(n, { timerId: e, timerType: "interval" }), r.set(e, n), o.postMessage({ id: n, method: "clear", params: { timerId: e, timerType: "interval" } }) }, clearTimeout: function (e) { var r = t.generateUniqueNumber(i); i.set(r, { timerId: e, timerType: "timeout" }), n.set(e, r), o.postMessage({ id: r, method: "clear", params: { timerId: e, timerType: "timeout" } }) }, setInterval: function (e, n) { var i = t.generateUniqueNumber(r); return r.set(i, function () { e(), "function" == typeof r.get(i) && o.postMessage({ id: null, method: "set", params: { delay: n, now: performance.now(), timerId: i, timerType: "interval" } }) }), o.postMessage({ id: null, method: "set", params: { delay: n, now: performance.now(), timerId: i, timerType: "interval" } }), i }, setTimeout: function (e, r) { var i = t.generateUniqueNumber(n); return n.set(i, e), o.postMessage({ id: null, method: "set", params: { delay: r, now: performance.now(), timerId: i, timerType: "timeout" } }), i } } }, Object.defineProperty(e, "__esModule", { value: !0 }) }), function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports, require("worker-timers-broker")) : "function" == typeof define && define.amd ? define(["exports", "worker-timers-broker"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).workerTimers = {}, e.workerTimersBroker) }(this, function (e, t) { "use strict"; var r = null, n = function (e, t) { return function () { if (null !== r) return r; var n = new Blob([t], { type: "application/javascript; charset=utf-8" }), i = URL.createObjectURL(n); return (r = e(i)).setTimeout(function () { return URL.revokeObjectURL(i) }, 0), r } }(t.load, '(()=>{var e={67:(e,t,r)=>{var o,i;void 0===(i="function"==typeof(o=function(){"use strict";var e=new Map,t=new Map,r=function(t){var r=e.get(t);if(void 0===r)throw new Error(\'There is no interval scheduled with the given id "\'.concat(t,\'".\'));clearTimeout(r),e.delete(t)},o=function(e){var r=t.get(e);if(void 0===r)throw new Error(\'There is no timeout scheduled with the given id "\'.concat(e,\'".\'));clearTimeout(r),t.delete(e)},i=function(e,t){var r,o=performance.now();return{expected:o+(r=e-Math.max(0,o-t)),remainingDelay:r}},n=function e(t,r,o,i){var n=performance.now();n>o?postMessage({id:null,method:"call",params:{timerId:r,timerType:i}}):t.set(r,setTimeout(e,o-n,t,r,o,i))},a=function(t,r,o){var a=i(t,o),s=a.expected,d=a.remainingDelay;e.set(r,setTimeout(n,d,e,r,s,"interval"))},s=function(e,r,o){var a=i(e,o),s=a.expected,d=a.remainingDelay;t.set(r,setTimeout(n,d,t,r,s,"timeout"))};addEventListener("message",(function(e){var t=e.data;try{if("clear"===t.method){var i=t.id,n=t.params,d=n.timerId,c=n.timerType;if("interval"===c)r(d),postMessage({error:null,id:i});else{if("timeout"!==c)throw new Error(\'The given type "\'.concat(c,\'" is not supported\'));o(d),postMessage({error:null,id:i})}}else{if("set"!==t.method)throw new Error(\'The given method "\'.concat(t.method,\'" is not supported\'));var u=t.params,l=u.delay,p=u.now,m=u.timerId,v=u.timerType;if("interval"===v)a(l,m,p);else{if("timeout"!==v)throw new Error(\'The given type "\'.concat(v,\'" is not supported\'));s(l,m,p)}}}catch(e){postMessage({error:{message:e.message},id:t.id,result:null})}}))})?o.call(t,r,t,e):o)||(e.exports=i)}},t={};function r(o){var i=t[o];if(void 0!==i)return i.exports;var n=t[o]={exports:{}};return e[o](n,n.exports,r),n.exports}r.n=e=>{var t=e&&e.__esModule?()=>e.default:()=>e;return r.d(t,{a:t}),t},r.d=(e,t)=>{for(var o in t)r.o(t,o)&&!r.o(e,o)&&Object.defineProperty(e,o,{enumerable:!0,get:t[o]})},r.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),(()=>{"use strict";r(67)})()})();'); e.clearInterval = function (e) { return n().clearInterval(e) }, e.clearTimeout = function (e) { return n().clearTimeout(e) }, e.setInterval = function (e, t) { return n().setInterval(e, t) }, e.setTimeout = function (e, t) { return n().setTimeout(e, t) }, Object.defineProperty(e, "__esModule", { value: !0 }) });
+
 
 const packets = {
     millPut: 30,
@@ -94,6 +95,8 @@ const fly = 'ⲆⵠⲆⵠⲆᐃⲆ';
 let skins = [];
 let lootboxes = [];
 
+let id_tings = 0;
+
 let Settings = {
     RemoveHands: { k: "ShiftLeft" },
     MainColor: 'rgb(16, 212, 68)',
@@ -162,10 +165,12 @@ let Settings = {
     SpiderTracers: true,
     WolfTracers: true,
     RabbitTracers: false,
+    FishTracers: true,
     VultureTracers: false,
     BabyDragonTracers: false,
     BabyLavaDragonTracers: true,
     esp: false,
+    NoFog: true,
     textalert: { e: false, t: "none" },
     buildinfo: true,
     ChestInfo: true,
@@ -186,7 +191,6 @@ let Settings = {
     AutoRecycle: { e: false, k: "KeyL", lastrecycle: -1, s: false },
     AutoSpike: { e: false, k: "Space", m: true, p: ["Reidite Spike", "Amethyst Spike", "Diamond Spike", "Gold Spike", "Stone Spike", "Wood Spike", "Wood Wall"] },
 }
-XrayCtx = CanvasRenderingContext2D.prototype.drawImage;
 
 
 setTimeout(() => {
@@ -194,9 +198,9 @@ setTimeout(() => {
         KILLUKRSOLIDER: () => {
             let container = document.body;
             let SDGSDsgdASF = new guify({
-                title: "Multihack by setorg V6",
+                title: "Multihack by setorg V8",
                 theme: {
-                    name: "Multihack by setorg V6",
+                    name: "Multihack by setorg V8",
                     colors: {
                         menuBarBackground: "rgb(0,0,0)",
                         menuBarText: "rgb(0, 255, 0)",
@@ -275,6 +279,8 @@ setTimeout(() => {
                 { type: 'checkbox', label: 'ShowNames', object: Settings, property: 'showNames', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'showFly', object: Settings, property: 'showFly', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'ColoredSpikes', object: Settings, property: 'ColoredSpikes', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'NoFog', object: Settings, property: 'NoFog', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: "range", label: "Xray", min: 0, max: 1, step: 0.1, object: Settings.Xray, property: "a", onChange: data => { kasdgiksadg.saveSettings() } },
                 // { type: 'checkbox', label: 'Xray', object: Settings.xray, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'NoFog', object: Settings, property: 'NoFog', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'ListEnabledHacks', object: Settings, property: 'ListEnabledHacks', onChange: data => { kasdgiksadg.saveSettings(); } },
@@ -289,15 +295,14 @@ setTimeout(() => {
                 // { type: 'checkbox', label: 'ShowNames', object: Settings, property: 'ShowNames', onChange: data => { } },
 
                 // { type: "range", label: "RoofsXray", min: 0, max: 1, step: 0.1, object: Settings.roofs, property: "o", onChange: data => { kasdgiksadg.saveSettings() } },
-                // { type: "range", label: "Xray", min: 0, max: 1, step: 0.1, object: Settings.xray, property: "o", onChange: data => { kasdgiksadg.saveSettings() } },
             ], {
                 folder: "Visuals"
             });
 
 
             SDGSDsgdASF.Register([
-                { type: 'checkbox', label: 'AutoFeed', object: Settings.AutoFeed2, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
-                { type: 'range', label: 'AutoFeed Value', min: 0, max: 99, step: 1, object: Settings.AutoFeed2, property: 'a', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'AutoFood', object: Settings.AutoFeed2, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'range', label: 'AutoFood Value', min: 0, max: 99, step: 1, object: Settings.AutoFeed2, property: 'a', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'AutoSteal', object: Settings.AutoSteal, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'AutoExtractorPut', object: Settings.AutoExtractorPut, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'AutoExtractorTake', object: Settings.AutoExtractorTake, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
@@ -344,9 +349,9 @@ setTimeout(() => {
                 { type: 'button', label: 'Set AutoBreadPut Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoBreadPut'); } },
                 { type: 'display', label: 'AutoBreadTake Key:', object: Settings.AutoBreadTake, property: 'k' },
                 { type: 'button', label: 'Set AutoBreadTake Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoBreadTake'); } },
+                { type: 'display', label: 'Xray Key:', object: Settings.Xray, property: 'k' },
+                { type: 'button', label: 'Set Xray Key', action: data => { kasdgiksadg.controls.setKeyBind('Xray'); } },
                 { type: 'display', label: 'Remove your hands:', object: Settings.RemoveHands, property: 'k' },
-                // { type: 'display', label: 'AutoSteal Key:', object: Settings.AutoSteal, property: 'k' },
-                // { type: 'button', label: 'Set AutoSteal Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoSteal'); } },
                 // { type: 'display', label: 'Spectator Key:', object: Settings.spectator, property: 'k' },
                 // { type: 'button', label: 'Set Spectator Key', action: data => { kasdgiksadg.controls.setKeyBind('spectator'); } },
                 // { type: 'display', label: 'DropSword Key:', object: Settings.DropSword, property: 'k' },
@@ -374,6 +379,7 @@ setTimeout(() => {
                 { type: 'checkbox', label: 'SpiderTracers', object: Settings, property: 'SpiderTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'WolfTracers', object: Settings, property: 'WolfTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'RabbitTracers', object: Settings, property: 'RabbitTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'FishTracers', object: Settings, property: 'FishTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'VultureTracers', object: Settings, property: 'VultureTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'BabyDragonTracers', object: Settings, property: 'BabyDragonTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'BabyLavaDragonTracers', object: Settings, property: 'BabyLavaDragonTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
@@ -475,6 +481,7 @@ setTimeout(() => {
                         break;
                     case Settings.Xray.k:
                         Settings.Xray.e = true;
+                        XrayOn();
                         break;
                     case Settings.AutoExtractorPut.k:
                         Settings.AutoExtractorPut.e = !Settings.AutoExtractorPut.e
@@ -514,6 +521,7 @@ setTimeout(() => {
                         break;
                     case Settings.Xray.k:
                         Settings.Xray.e = false;
+                        XrayOff();
                         break;
                     case Settings.AutoCraft.k:
                         Settings.AutoCraft.e = !Settings.AutoCraft.e;
@@ -537,6 +545,8 @@ setTimeout(() => {
             e.onload = function () {
                 setTimeout(kasdgiksadg.KILLUKRSOLIDER, 500)
             }, e.src = "https://unpkg.com/guify@0.12.0/lib/guify.min.js", unsafeWindow.document.body.appendChild(e)
+            setTimeout(loadFog, 600)
+            setTimeout(loadXray, 1000)
         },
     };
 
@@ -1297,29 +1307,155 @@ function blizzard() {
 }
 let ally = [];
 const extractor_ids = [24, 25, 26, 27, 28];
-const foodItems = [138, 110, 117, 192, 189, 205, 207, 209, 143]
+const foodItems = [138, 110, 117, 192, 189, 205, 207, 209, 243, 244,]
 let ice = [142, 200];
 let lastFood = [0, 0];
 let enemyForAMB = { pid: null, d: 0 };
 let lootboxsinfo = {};
 let deathboxinfo = {};
 
-/*
-// Xray!!!
-const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
+const whuteListXray = [108, 109, 110, 111, 112, 114, 119, 121, 202, 307, 413, 415, 416, 676, 693]
+const fogs = [244, 1041]
+XraySprites = {}
+NoXraySprites = {}
+let mypid = -1;
 
-CanvasRenderingContext2D.prototype.drawImage = function (...args) {
-    if (Settings.Xray.e) {
-        this.globalAlpha = Settings.Xray.a;
-        try {
-            return originalDrawImage.apply(this, args);
-        } finally {
-            this.globalAlpha = 1;
+
+function loadFog() {
+    const FogCanvas = document.createElement('canvas');
+    FogCanvas.width = 10;
+    FogCanvas.height = 10;
+
+    const img = new Image();
+    img.src = FogCanvas.toDataURL();
+
+    fogs.forEach(function (i, id, arr) {
+        for (let k = 0; k < unsafeWindow['Ⲇⵠ'][i].length; k++) {
+            if (!unsafeWindow['Ⲇⵠ'][i][k]) continue;
+            if (!unsafeWindow['Ⲇⵠ'][i][k].length) continue;
+            log(i);
+            for (let l = 0; l < unsafeWindow['Ⲇⵠ'][i][k].length; l++) {
+                unsafeWindow['Ⲇⵠ'][i][k][l] = img;
+            }
         }
-    }
-    return originalDrawImage.apply(this, args);
-};
-*/
+    });
+
+}
+
+function loadXray() {
+
+
+    log(unsafeWindow['Ⲇⵠ']);
+
+    whuteListXray.forEach(function (i, id, arr) {
+        XraySprites[i] = [];
+        NoXraySprites[i] = [];
+        for (let k = 0; k < unsafeWindow['Ⲇⵠ'][i].length; k++) {
+            if (!unsafeWindow['Ⲇⵠ'][i][k]) continue;
+            if (!unsafeWindow['Ⲇⵠ'][i][k].length) continue;
+            log(i);
+            XraySprites[i].push([]);
+            NoXraySprites[i].push([]);
+
+            for (let l = 0; l < unsafeWindow['Ⲇⵠ'][i][k].length; l++) {
+                const originalImg = unsafeWindow['Ⲇⵠ'][i][k][l];
+                if (!originalImg) continue;
+                const cachedDataURL = localStorage.getItem('XrayImg' + i + '_' + k + '_' + l);
+                if (cachedDataURL) {
+                    const newImg = new Image();
+                    newImg.src = cachedDataURL;
+                    newImg.onload = function () {
+                        XraySprites[i][k].push(newImg);
+                    };
+                    const tempCanvas2 = document.createElement('canvas');
+                    tempCanvas2.width = originalImg.width;
+                    tempCanvas2.height = originalImg.height;
+                    const tempCtx2 = tempCanvas2.getContext('2d');
+                    tempCtx2.drawImage(originalImg, 0, 0);
+                    const copyImg = new Image();
+                    copyImg.src = tempCanvas2.toDataURL();
+                    copyImg.onload = function () {
+                        NoXraySprites[i][k].push(copyImg);
+                    };
+                    continue;
+                }
+
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = originalImg.width;
+                tempCanvas.height = originalImg.height;
+                if (tempCanvas.width == 0) continue;
+                const tempCtx = tempCanvas.getContext('2d');
+                const tempCanvas2 = document.createElement('canvas');
+                tempCanvas2.width = originalImg.width;
+                tempCanvas2.height = originalImg.height;
+                const tempCtx2 = tempCanvas2.getContext('2d');
+
+                tempCtx.drawImage(originalImg, 0, 0);
+                tempCtx2.drawImage(originalImg, 0, 0);
+
+                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+
+                const alphaValue = Settings.Xray.a;
+                for (let j = 0; j < data.length; j += 4) {
+                    if (data[j + 3] !== 0) {
+                        data[j + 3] = Math.round(data[j + 3] * alphaValue);
+                    }
+                }
+
+                tempCtx.putImageData(imageData, 0, 0);
+
+                const newImg = new Image();
+                const copyImg = new Image();
+                newImg.src = tempCanvas.toDataURL();
+                copyImg.src = tempCanvas2.toDataURL();
+                localStorage.setItem('XrayImg' + i + '_' + k + '_' + l, tempCanvas.toDataURL());
+                newImg.onload = function () {
+                    XraySprites[i][k].push(newImg);
+                };
+                copyImg.onload = function () {
+                    NoXraySprites[i][k].push(copyImg);
+                };
+            }
+        }
+    });
+
+    log(XraySprites, NoXraySprites);
+
+}
+
+
+
+
+// Xray!!!
+function XrayOn() {
+    if (!script.user.alive) return;
+    whuteListXray.forEach(function (i, id, arr) {
+        if (XraySprites[i].length != 0) {
+            for (let k = 0; k < unsafeWindow['Ⲇⵠ'][i].length; k++) {
+                if (XraySprites[i][k].length == 0) return;
+                for (let l = 0; l < unsafeWindow['Ⲇⵠ'][i][k].length; l++) {
+                    unsafeWindow['Ⲇⵠ'][i][k][l] = XraySprites[i][k][l].cloneNode(true);
+                }
+            }
+        }
+    });
+
+
+}
+function XrayOff() {
+    whuteListXray.forEach(function (i, id, arr) {
+        if (XraySprites[i].length != 0) {
+            for (let k = 0; k < unsafeWindow['Ⲇⵠ'][i].length; k++) {
+                if (NoXraySprites[i][k].length == 0) return;
+                for (let l = 0; l < unsafeWindow['Ⲇⵠ'][i][k].length; l++) {
+                    unsafeWindow['Ⲇⵠ'][i][k][l] = NoXraySprites[i][k][l].cloneNode(true);
+                }
+            }
+        }
+    });
+}
+
 
 
 function loadSpikes() {
@@ -1348,6 +1484,28 @@ function loadSpikes() {
     unsafeWindow.StoneSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-stone-spike-enemy.png"
     unsafeWindow.WoodSpikeEnemy = new Image;
     unsafeWindow.WoodSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-wood-spike-enemy.png"
+
+
+
+    unsafeWindow.sprite = unsafeWindow['Ⲇⵠ'];
+    unsafeWindow.sprite[10000] = [WoodSpikeAlly, WoodSpikeAlly];
+    unsafeWindow.sprite[10001] = [WoodSpikeEnemy, WoodSpikeEnemy];
+
+    unsafeWindow.sprite[10002] = [StoneSpikeAlly, StoneSpikeAlly];
+    unsafeWindow.sprite[10003] = [StoneSpikeEnemy, StoneSpikeEnemy];
+
+    unsafeWindow.sprite[10004] = [GoldSpikeAlly, GoldSpikeAlly];
+    unsafeWindow.sprite[10005] = [GoldSpikeEnemy, GoldSpikeEnemy];
+
+    unsafeWindow.sprite[10006] = [DiamondSpikeAlly, DiamondSpikeAlly];
+    unsafeWindow.sprite[10007] = [DiamondSpikeEnemy, DiamondSpikeEnemy];
+
+    unsafeWindow.sprite[10008] = [AmethystSpikeAlly, AmethystSpikeAlly];
+    unsafeWindow.sprite[10009] = [AmethystSpikeEnemy, AmethystSpikeEnemy];
+
+    unsafeWindow.sprite[10010] = [ReiditeSpikeAlly, ReiditeSpikeAlly];
+    unsafeWindow.sprite[10011] = [ReiditeSpikeEnemy, ReiditeSpikeEnemy];
+
     console.log("Load Spikes successful");
 }
 
@@ -1361,7 +1519,7 @@ function colors() {
     };
 
 
-    if (script.user.alive && Settings.ColoredSpikes) {
+    if (true) {
         let ITEMS = {
             SPIKE: 5,
             STONE_SPIKE: 12,
@@ -1371,102 +1529,66 @@ function colors() {
             REIDITE_SPIKE: 52,
         }
 
-        unsafeWindow.ITEMS_TO_CHECK = {
-            SPIKE: 5,
-            STONE_SPIKE: 12,
-            GOLD_SPIKE: 13,
-            DIAMOND_SPIKE: 14,
-            AMETHYST_SPIKE: 20,
-            REIDITE_SPIKE: 52,
-        }
-        let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMOPQRSTUVWXYZ_0123456789";
-
-        for (let e in unsafeWindow) {
-            if (!Array.isArray(unsafeWindow[e]) && chars.includes(e[0])) continue;
-            if (unsafeWindow[e].length > 800 && unsafeWindow[e].length < 1500) {
-                unsafeWindow.sprite = unsafeWindow[e];
-                console.log(e);
-            }
-        }
-        unsafeWindow.sprite[10000] = [WoodSpikeAlly, WoodSpikeAlly];
-        unsafeWindow.sprite[10001] = [WoodSpikeEnemy, WoodSpikeEnemy];
-
-        unsafeWindow.sprite[10002] = [StoneSpikeAlly, StoneSpikeAlly];
-        unsafeWindow.sprite[10003] = [StoneSpikeEnemy, StoneSpikeEnemy];
-
-        unsafeWindow.sprite[10004] = [GoldSpikeAlly, GoldSpikeAlly];
-        unsafeWindow.sprite[10005] = [GoldSpikeEnemy, GoldSpikeEnemy];
-
-        unsafeWindow.sprite[10006] = [DiamondSpikeAlly, DiamondSpikeAlly];
-        unsafeWindow.sprite[10007] = [DiamondSpikeEnemy, DiamondSpikeEnemy];
-
-        unsafeWindow.sprite[10008] = [AmethystSpikeAlly, AmethystSpikeAlly];
-        unsafeWindow.sprite[10009] = [AmethystSpikeEnemy, AmethystSpikeEnemy];
-
-        unsafeWindow.sprite[10010] = [ReiditeSpikeAlly, ReiditeSpikeAlly];
-        unsafeWindow.sprite[10011] = [ReiditeSpikeEnemy, ReiditeSpikeEnemy];
-
         let push = Array.prototype.push
         Array.prototype.push = function (p) {
             if (p) {
                 let a = Object.keys(p);
                 5 == a.length && a.includes("draw") && a.includes("in_button") && 32 !== p.id && 130 !== p.id && 127 !== p.id && 4 !== p.id && 25 !== p.id && 34 !== p.id && 87 !== p.id && (unsafeWindow.inventory = this);
             }
-            unsafeWindow.wow = 'Δⵠᐃⵠ'
+            unsafeWindow.wow = 'ⲆᐃᐃⲆ'
             if (p && null != p.type && null != p.id && p.x && p.y) {
-                switch ((0 === p.type && pid(p) === unsafeWindow.playerID && (unsafeWindow.player = p), p.type)) {
+                try {
+                    p.ally = mypid === p.ΔᐃᐃⲆ || isAlly(p.ΔᐃᐃⲆ);
 
-                    case ITEMS.SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let l = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? l.apply(this, [1e4]) : l.apply(this, [10001])) : l.apply(this, arguments);
-                        };
-                        break;
+                    switch ((0 === p.type && pid(p) === unsafeWindow.playerID && (unsafeWindow.player = p), p.type)) {
+                        case ITEMS.SPIKE: {
+                            let l = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? l.apply(this, [10000]) : l.apply(this, [10001])) : l.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.STONE_SPIKE: {
+                            let i = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? i.apply(this, [10002]) : i.apply(this, [10003])) : i.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.GOLD_SPIKE: {
+                            let e = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? e.apply(this, [10004]) : e.apply(this, [10005])) : e.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.DIAMOND_SPIKE: {
+                            let t = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? t.apply(this, [10006]) : t.apply(this, [10007])) : t.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.AMETHYST_SPIKE: {
+                            let r = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? r.apply(this, [10008]) : r.apply(this, [10009])) : r.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.REIDITE_SPIKE: {
+                            let y = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? y.apply(this, [10010]) : y.apply(this, [10011])) : y.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case unit()[0]: {
+                            let w = p[wow]
+                        }
                     }
-                    case ITEMS.STONE_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let i = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? i.apply(this, [10002]) : i.apply(this, [10003])) : i.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.GOLD_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let e = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? e.apply(this, [10004]) : e.apply(this, [10005])) : e.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.DIAMOND_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let t = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? t.apply(this, [10006]) : t.apply(this, [10007])) : t.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.AMETHYST_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let r = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? r.apply(this, [10008]) : r.apply(this, [10009])) : r.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.REIDITE_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let y = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? y.apply(this, [10010]) : y.apply(this, [10011])) : y.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case unit()[0]: {
-                        let w = p[wow]
-                    }
+                } catch (error) {
+                    return push.apply(this, arguments);
                 }
             }
             return push.apply(this, arguments);
@@ -1474,12 +1596,15 @@ function colors() {
     }
 }
 
+
 function updater() {
     requestAnimationFrame(updater)
 
     unsafeWindow.ctx = document.getElementById("game_canvas").getContext("2d");
 
     script.user.alive = user[Object.keys(user)[10]];
+
+
 
     let i = 22.5;
     for (hack in Settings) {
@@ -1525,6 +1650,7 @@ function updater() {
         script.user.team = user[Object.keys(user)[21]]
 
         let myPlayer = script.world.fast_units[script.user.uid];
+        mypid = myPlayer[Object.keys(myPlayer)[1]]
 
         /*
         if (myPlayer) {
@@ -1543,6 +1669,7 @@ function updater() {
         script.myPlayer.ghost = myPlayer[Object.keys(myPlayer)[64]]
 
         ally = script.user.team.length > 0 ? script.user.team : [script.user.id];
+        units = unit()
 
         if (Settings.gaugesInfo) {
             const r = unsafeWindow.innerWidth / 2;
@@ -1699,6 +1826,17 @@ function updater() {
                     ctx.stroke();
                 };
             }
+            if (Settings.FishTracers) {
+                mobs = script.world.units[65];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.lineWidth = 2.6;
+                    ctx.strokeStyle = "#f77d72";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
             if (Settings.VultureTracers) {
                 mobs = script.world.units[75];
                 for (let i = 0; i < mobs.length; i++) {
@@ -1754,8 +1892,8 @@ function updater() {
             ctx.restore();
         }
 
-
-        if (Settings.ColoredSpikes) {
+        /*
+        if (Settings.ColoredSpikes && false) {
             if (!unsafeWindow.WoodSpikeAlly) loadSpikes();
 
             const mypid = myPlayer[Object.keys(myPlayer)[1]]
@@ -1764,7 +1902,6 @@ function updater() {
             ctx.font = "40px Baloo Paaji";
             ctx.fillStyle = "black";
 
-            units = unit()
             woodspikes = units[5];
             for (let i = 0; i < woodspikes.length; i++) {
                 spike = woodspikes[i];
@@ -1834,6 +1971,7 @@ function updater() {
             ctx.restore();
 
         }
+        */
 
         if (Settings.boxinfo) {
             deathBoxs = units[82];
@@ -1909,6 +2047,11 @@ function updater() {
                 }
                 ctx.save();
                 let img = getImgForChest(chest)
+                if (img.localName == 'img') {
+                    if (img['ⵠᐃᐃⲆᐃⵠⲆ'] == 0) {
+                        img.src = img.baseURI + img['ⵠᐃᐃᐃΔ']
+                    }
+                }
                 if (img) ctx.drawImage(img, chest.x + script.user.cam.x - 32, chest.y + script.user.cam.y - 32, 60, 65);
                 ctx.lineWidth = 8;
                 ctx.font = "20px Baloo Paaji";

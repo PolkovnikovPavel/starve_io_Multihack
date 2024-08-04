@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Multihack by setorg V8
+// @name         Multihack by setorg V9
 // @namespace    http://tampermonkey.net/
 // @version      2024-05-20
 // @description  Всё что нужно для реального пацана
@@ -9,7 +9,6 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 /* workerTimers */ ! function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports) : "function" == typeof define && define.amd ? define(["exports"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).fastUniqueNumbers = {}) }(this, function (e) { "use strict"; var t, r = void 0 === Number.MAX_SAFE_INTEGER ? 9007199254740991 : Number.MAX_SAFE_INTEGER, n = new WeakMap, i = function (e, t) { return function (n) { var i = t.get(n), o = void 0 === i ? n.size : i < 1073741824 ? i + 1 : 0; if (!n.has(o)) return e(n, o); if (n.size < 536870912) { for (; n.has(o);) o = Math.floor(1073741824 * Math.random()); return e(n, o) } if (n.size > r) throw new Error("Congratulations, you created a collection of unique numbers which uses all available integers!"); for (; n.has(o);) o = Math.floor(Math.random() * r); return e(n, o) } }((t = n, function (e, r) { return t.set(e, r), r }), n), o = function (e) { return function (t) { var r = e(t); return t.add(r), r } }(i); e.addUniqueNumber = o, e.generateUniqueNumber = i, Object.defineProperty(e, "__esModule", { value: !0 }) }), function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports, require("fast-unique-numbers")) : "function" == typeof define && define.amd ? define(["exports", "fast-unique-numbers"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).workerTimersBroker = {}, e.fastUniqueNumbers) }(this, function (e, t) { "use strict"; e.load = function (e) { var r = new Map([[0, function () { }]]), n = new Map([[0, function () { }]]), i = new Map, o = new Worker(e); o.addEventListener("message", function (e) { var t = e.data; if (function (e) { return void 0 !== e.method && "call" === e.method }(t)) { var o = t.params, a = o.timerId, s = o.timerType; if ("interval" === s) { var u = r.get(a); if ("number" == typeof u) { var d = i.get(u); if (void 0 === d || d.timerId !== a || d.timerType !== s) throw new Error("The timer is in an undefined state.") } else { if (void 0 === u) throw new Error("The timer is in an undefined state."); u() } } else if ("timeout" === s) { var f = n.get(a); if ("number" == typeof f) { var l = i.get(f); if (void 0 === l || l.timerId !== a || l.timerType !== s) throw new Error("The timer is in an undefined state.") } else { if (void 0 === f) throw new Error("The timer is in an undefined state."); f(), n.delete(a) } } } else { if (! function (e) { return null === e.error && "number" == typeof e.id }(t)) { var m = t.error.message; throw new Error(m) } var c = t.id, p = i.get(c); if (void 0 === p) throw new Error("The timer is in an undefined state."); var v = p.timerId, h = p.timerType; i.delete(c), "interval" === h ? r.delete(v) : n.delete(v) } }); return { clearInterval: function (e) { var n = t.generateUniqueNumber(i); i.set(n, { timerId: e, timerType: "interval" }), r.set(e, n), o.postMessage({ id: n, method: "clear", params: { timerId: e, timerType: "interval" } }) }, clearTimeout: function (e) { var r = t.generateUniqueNumber(i); i.set(r, { timerId: e, timerType: "timeout" }), n.set(e, r), o.postMessage({ id: r, method: "clear", params: { timerId: e, timerType: "timeout" } }) }, setInterval: function (e, n) { var i = t.generateUniqueNumber(r); return r.set(i, function () { e(), "function" == typeof r.get(i) && o.postMessage({ id: null, method: "set", params: { delay: n, now: performance.now(), timerId: i, timerType: "interval" } }) }), o.postMessage({ id: null, method: "set", params: { delay: n, now: performance.now(), timerId: i, timerType: "interval" } }), i }, setTimeout: function (e, r) { var i = t.generateUniqueNumber(n); return n.set(i, e), o.postMessage({ id: null, method: "set", params: { delay: r, now: performance.now(), timerId: i, timerType: "timeout" } }), i } } }, Object.defineProperty(e, "__esModule", { value: !0 }) }), function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports, require("worker-timers-broker")) : "function" == typeof define && define.amd ? define(["exports", "worker-timers-broker"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).workerTimers = {}, e.workerTimersBroker) }(this, function (e, t) { "use strict"; var r = null, n = function (e, t) { return function () { if (null !== r) return r; var n = new Blob([t], { type: "application/javascript; charset=utf-8" }), i = URL.createObjectURL(n); return (r = e(i)).setTimeout(function () { return URL.revokeObjectURL(i) }, 0), r } }(t.load, '(()=>{var e={67:(e,t,r)=>{var o,i;void 0===(i="function"==typeof(o=function(){"use strict";var e=new Map,t=new Map,r=function(t){var r=e.get(t);if(void 0===r)throw new Error(\'There is no interval scheduled with the given id "\'.concat(t,\'".\'));clearTimeout(r),e.delete(t)},o=function(e){var r=t.get(e);if(void 0===r)throw new Error(\'There is no timeout scheduled with the given id "\'.concat(e,\'".\'));clearTimeout(r),t.delete(e)},i=function(e,t){var r,o=performance.now();return{expected:o+(r=e-Math.max(0,o-t)),remainingDelay:r}},n=function e(t,r,o,i){var n=performance.now();n>o?postMessage({id:null,method:"call",params:{timerId:r,timerType:i}}):t.set(r,setTimeout(e,o-n,t,r,o,i))},a=function(t,r,o){var a=i(t,o),s=a.expected,d=a.remainingDelay;e.set(r,setTimeout(n,d,e,r,s,"interval"))},s=function(e,r,o){var a=i(e,o),s=a.expected,d=a.remainingDelay;t.set(r,setTimeout(n,d,t,r,s,"timeout"))};addEventListener("message",(function(e){var t=e.data;try{if("clear"===t.method){var i=t.id,n=t.params,d=n.timerId,c=n.timerType;if("interval"===c)r(d),postMessage({error:null,id:i});else{if("timeout"!==c)throw new Error(\'The given type "\'.concat(c,\'" is not supported\'));o(d),postMessage({error:null,id:i})}}else{if("set"!==t.method)throw new Error(\'The given method "\'.concat(t.method,\'" is not supported\'));var u=t.params,l=u.delay,p=u.now,m=u.timerId,v=u.timerType;if("interval"===v)a(l,m,p);else{if("timeout"!==v)throw new Error(\'The given type "\'.concat(v,\'" is not supported\'));s(l,m,p)}}}catch(e){postMessage({error:{message:e.message},id:t.id,result:null})}}))})?o.call(t,r,t,e):o)||(e.exports=i)}},t={};function r(o){var i=t[o];if(void 0!==i)return i.exports;var n=t[o]={exports:{}};return e[o](n,n.exports,r),n.exports}r.n=e=>{var t=e&&e.__esModule?()=>e.default:()=>e;return r.d(t,{a:t}),t},r.d=(e,t)=>{for(var o in t)r.o(t,o)&&!r.o(e,o)&&Object.defineProperty(e,o,{enumerable:!0,get:t[o]})},r.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),(()=>{"use strict";r(67)})()})();'); e.clearInterval = function (e) { return n().clearInterval(e) }, e.clearTimeout = function (e) { return n().clearTimeout(e) }, e.setInterval = function (e, t) { return n().setInterval(e, t) }, e.setTimeout = function (e, t) { return n().setTimeout(e, t) }, Object.defineProperty(e, "__esModule", { value: !0 }) });
-
 
 const packets = {
     millPut: 30,
@@ -102,6 +101,19 @@ let Settings = {
     MainColor: 'rgb(16, 212, 68)',
     TextColor: "rgb(21, 201, 68)",
     BackgroundColor: "rgb(22, 22, 22)",
+    Autofarm: {
+        e: false,
+        k: "KeyJ",
+        'water': ![],
+        'keyMode': 'press',
+        'angle': null,
+        'x': 0x0,
+        'y': 0x0,
+        'xx': 0x0,
+        'yy': 0x0,
+        'sx': 0x0,
+        'sy': 0x0
+    },
     AutoIce: {
         e: false,
         k: "KeyC",
@@ -198,9 +210,9 @@ setTimeout(() => {
         KILLUKRSOLIDER: () => {
             let container = document.body;
             let SDGSDsgdASF = new guify({
-                title: "Multihack by setorg V8",
+                title: "Multihack by setorg V9",
                 theme: {
-                    name: "Multihack by setorg V8",
+                    name: "Multihack by setorg V9",
                     colors: {
                         menuBarBackground: "rgb(0,0,0)",
                         menuBarText: "rgb(0, 255, 0)",
@@ -244,6 +256,11 @@ setTimeout(() => {
             SDGSDsgdASF.Register({
                 type: "folder",
                 label: "AutoCraft & AutoRecycle",
+                open: !1
+            })
+            SDGSDsgdASF.Register({
+                type: "folder",
+                label: "Auto Farm",
                 open: !1
             })
             SDGSDsgdASF.Register({
@@ -349,6 +366,8 @@ setTimeout(() => {
                 { type: 'button', label: 'Set AutoBreadPut Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoBreadPut'); } },
                 { type: 'display', label: 'AutoBreadTake Key:', object: Settings.AutoBreadTake, property: 'k' },
                 { type: 'button', label: 'Set AutoBreadTake Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoBreadTake'); } },
+                { type: 'display', label: 'AutoFarm Key:', object: Settings.Autofarm, property: 'k' },
+                { type: 'button', label: 'Set AutoFarm Key', action: data => { kasdgiksadg.controls.setKeyBind('Autofarm'); } },
                 { type: 'display', label: 'Xray Key:', object: Settings.Xray, property: 'k' },
                 { type: 'button', label: 'Set Xray Key', action: data => { kasdgiksadg.controls.setKeyBind('Xray'); } },
                 { type: 'display', label: 'Remove your hands:', object: Settings.RemoveHands, property: 'k' },
@@ -394,6 +413,22 @@ setTimeout(() => {
                 { type: 'button', label: 'Drop', action: data => { DropInChest(); } },
             ], {
                 folder: "Drop in chest"
+            });
+
+            SDGSDsgdASF.Register([
+                { type: 'checkbox', label: 'Start Autofarm', object: Settings.Autofarm, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'Auto water', object: Settings.Autofarm, property: 'water', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'button', label: 'Top left of farm', action: data => { mp = myplayer(); mp && (Settings.Autofarm['x'] = mp.x, Settings.Autofarm['y'] = mp.y) } },
+                { type: 'button', label: 'Bottom right of farm', action: data => { mp = myplayer(); mp && (Settings.Autofarm['xx'] = mp.x, Settings.Autofarm['yy'] = mp.y) } },
+                { type: 'button', label: 'Safe Point', action: data => { mp = myplayer(); mp && (Settings.Autofarm['sx'] = mp.x, Settings.Autofarm['sy'] = mp.y) } },
+                { type: 'display', label: 'X:', object: Settings.Autofarm, property: 'x' },
+                { type: 'display', label: 'Y:', object: Settings.Autofarm, property: 'y' },
+                { type: 'display', label: 'X1:', object: Settings.Autofarm, property: 'xx' },
+                { type: 'display', label: 'Y1:', object: Settings.Autofarm, property: 'yy' },
+                { type: 'display', label: 'SX:', object: Settings.Autofarm, property: 'sx' },
+                { type: 'display', label: 'SY:', object: Settings.Autofarm, property: 'sy' },
+            ], {
+                folder: "Auto Farm"
             });
 
             SDGSDsgdASF.Register([
@@ -501,6 +536,9 @@ setTimeout(() => {
                         break;
                     case Settings.AutoIce.k:
                         Settings.AutoIce.e = !Settings.AutoIce.e
+                        break;
+                    case Settings.Autofarm.k:
+                        Settings.Autofarm.e = !Settings.Autofarm.e
                         break;
                     case "ShiftLeft":
                         console.log("ShiftLeft");
@@ -674,8 +712,14 @@ function send(data) {
         }
     }
 
-
-    client[sock].send(JSON.stringify(data))
+    try {
+        client[sock].send(JSON.stringify(data))
+    } catch (error) {
+        Settings.textalert.t = 'Error loading script'
+        Settings.textalert.e = true
+        return
+    }
+    
 }
 function unit() {
     let units;
@@ -966,6 +1010,134 @@ function getImgForChest(chest) {
     let copy_game = game
     if (!copy_game) return;
     return copy_game["ᐃⲆᐃ"][chest.action / 2 - 1]["info"]["ⵠΔ"][0];
+}
+
+
+let cooldowns = {
+    Autofarm: Date['now']()
+};
+
+
+function autofarm() {
+    requestAnimationFrame(autofarm);
+
+    function _0x2c4b97(_0x2965fb, _0x5723f3, _0x30ace0) {
+        return _0x2965fb && _0x5723f3 ? _0x30ace0 ? Math['atan2'](_0x5723f3['r']['y'] - _0x2965fb['r']['y'], _0x5723f3['r']['x'] - _0x2965fb['r']['x']) : Math['atan2'](_0x5723f3['y'] - _0x2965fb['y'], _0x5723f3['x'] - _0x2965fb['x']) : null;
+    }
+    let _0x456623 = Object.keys(client)[0x7a], _0x51832d = myplayer();
+    if (Settings.Autofarm.e) {
+        if (Date['now']() - cooldowns.Autofarm > 0x32) {
+            let _0x2a1577 = {
+                'obj': null,
+                'dist': -0x1,
+                'type': 0x0
+            };
+            var _0x4770ff = {
+                'x': Settings.Autofarm['x'],
+                'y': Settings.Autofarm['y'],
+                'width': Settings.Autofarm['xx'] - Settings.Autofarm['x'],
+                'height': Settings.Autofarm['yy'] - Settings.Autofarm['y']
+            };
+            _0x1ad92b = [...unit()[0x3], ...unit()[0x1f], ...unit()[0x25], ...unit()[0x27], ...unit()[0x28], ...unit()[0x2b], ...unit()[0x2c], ...unit()[0x36], ...unit()[0x37]]
+            for (var i = 0x0, _0x59cf69 = _0x1ad92b['length'], _0x2317d2 = null, _0x340be5 = null; i < _0x59cf69; ++i) {
+                _0x2317d2 = _0x1ad92b[i];
+                if (!_0x2317d2['info'] || _0x2317d2['info'] === 0xa) continue;
+                if (!Settings.Autofarm['water'] && _0x2317d2['info'] === 0x10) continue;
+                if (_0x4770ff['x'] < _0x2317d2['x'] - 0x32 + 0x64 && _0x4770ff['x'] + _0x4770ff['width'] > _0x2317d2['x'] - 0x32 && _0x4770ff['y'] < _0x2317d2['y'] - 0x32 + 0x64 && _0x4770ff['y'] + _0x4770ff['height'] > _0x2317d2['y'] - 0x32) {
+                    let _0x4d83c2 = Object.keys(mouse)[0x4];
+                    Settings.Autofarm.e && Settings.Autofarm['angle'] != null && (mouse[_0x4d83c2]['x'] = getUserPosition()[0x0] + _0x2317d2['x'], mouse[_0x4d83c2]['y'] = getUserPosition()[0x1] + _0x2317d2['y']);
+                    _0x340be5 = (_0x51832d['x'] - _0x2317d2['x']) ** 0x2 + (_0x51832d['y'] - _0x2317d2['y']) ** 0x2;
+                    (_0x2a1577['dist'] === -0x1 || _0x340be5 < _0x2a1577['dist']) && (_0x2a1577['dist'] = _0x340be5, _0x2a1577['obj'] = _0x2317d2);;
+                };
+            };
+
+            function _0x1d908b(_0xff379f, _0x13231b) {
+                if (_0xff379f && _0x13231b) return Math['sqrt']((_0xff379f['x'] - _0x13231b['x']) ** 0x2 + (_0xff379f['y'] - _0x13231b['y']) ** 0x2);;
+                return null;
+            };
+            if (_0x2a1577['obj']) {
+                _0x2a1577['dist'] = _0x1d908b(_0x51832d, _0x2a1577['obj']);
+                switch (_0x2a1577['obj']['info']) {
+                    case 0x1:
+                    case 0x2:
+                    case 0x3:
+                        if (inventoryHas(0x36)[0x0]) {
+                            _0x51832d['right'] !== 0x36 && send([packets['equip'], 0x36]);;
+                        } else {
+                            if (inventoryHas(0x35)[0x0]) {
+                                _0x51832d['right'] !== 0x35 && send([packets['equip'], 0x35]);;
+                            }
+                        };
+                        _0x2a1577['type'] = 0x2;
+                        break;
+                    case 0x10:
+                    case 0x11:
+                    case 0x12:
+                    case 0x13:
+                        if (Settings.Autofarm['water']) {
+                            if (inventoryHas(0x31)[0x0]) {
+                                if (_0x51832d['right'] !== 0x31) send([packets['equip'], 0x31]);
+                                _0x2a1577['type'] = 0x1;
+                            };
+                        } else {
+                            if (inventoryHas(0x36)[0x0]) {
+                                _0x51832d['right'] !== 0x36 && send([packets['equip'], 0x36]);;
+                            } else {
+                                if (inventoryHas(0x35)[0x0]) {
+                                    _0x51832d['right'] !== 0x35 && send([packets['equip'], 0x35]);;
+                                }
+                            };
+                            _0x2a1577['type'] = 0x2;
+                        };
+                        break;
+                };
+                let _0x4eca81 = {
+                    'x': _0x51832d['x'] - _0x2a1577['obj']['x'],
+                    'y': _0x51832d['y'] - _0x2a1577['obj']['y']
+                },
+                    _0x57c2ec = {
+                        'x': Math['abs'](_0x51832d['x'] - _0x2a1577['obj']['x']),
+                        'y': Math['abs'](_0x51832d['y'] - _0x2a1577['obj']['y'])
+                    },
+                    _0x1d01db = 0x0;
+                if (_0x57c2ec['x'] > 0x3c) {
+                    if (_0x4eca81['x'] > 0x32) _0x1d01db += 0x1;
+                    if (_0x4eca81['x'] < 0x32) _0x1d01db += 0x2;
+                };
+                if (_0x57c2ec['y'] > 0x3c) {
+                    if (_0x4eca81['y'] > 0x32) _0x1d01db += 0x8;
+                    if (_0x4eca81['y'] < 0x32) _0x1d01db += 0x4;
+                };
+                client[_0x456623](_0x1d01db);
+                if (_0x57c2ec['x'] < (_0x2a1577['type'] === 0x1 ? 0x78 : 0x12c) && _0x57c2ec['y'] < (_0x2a1577['type'] === 0x1 ? 0x78 : 0x12c)) {
+                    Settings.Autofarm['angle'] = _0x2c4b97(_0x51832d, _0x2a1577['obj'], !![]);
+                    let _0x2ad285 = 0x2 * Math['PI'],
+                        _0x42fb54 = Math['floor']((Settings.Autofarm['angle'] + _0x2ad285) % _0x2ad285 * 0xff / _0x2ad285);
+                    Settings.Autofarm['angle'] && (send([packets['attack'], _0x42fb54]), send([packets['stopAttack']]));;
+                };
+            } else {
+                let _0x897afa = {
+                    'x': _0x51832d['x'] - Settings.Autofarm['sx'],
+                    'y': _0x51832d['y'] - Settings.Autofarm['sy']
+                },
+                    _0x52a51a = {
+                        'x': Math['abs'](_0x51832d['x'] - Settings.Autofarm['sx']),
+                        'y': Math['abs'](_0x51832d['y'] - Settings.Autofarm['sy'])
+                    },
+                    _0x265b45 = 0x0;
+                if (_0x52a51a['x'] > 0x3c) {
+                    if (_0x897afa['x'] > 0x0) _0x265b45 += 0x1;
+                    if (_0x897afa['x'] < 0x0) _0x265b45 += 0x2;
+                };
+                if (_0x52a51a['y'] > 0x3c) {
+                    if (_0x897afa['y'] > 0x0) _0x265b45 += 0x8;
+                    if (_0x897afa['y'] < 0x0) _0x265b45 += 0x4;
+                };
+                client[_0x456623](_0x265b45);
+            }
+            cooldowns.Autofarm = Date['now']();
+        }
+    }
 }
 
 
@@ -1313,6 +1485,7 @@ let lastFood = [0, 0];
 let enemyForAMB = { pid: null, d: 0 };
 let lootboxsinfo = {};
 let deathboxinfo = {};
+Settings.Autofarm['x'] = 0; Settings.Autofarm['y'] = 0; Settings.Autofarm['xx'] = 0; Settings.Autofarm['yy'] = 0; Settings.Autofarm['sx'] = 0; Settings.Autofarm['sy'] = 0;
 
 const whuteListXray = [108, 109, 110, 111, 112, 114, 119, 121, 202, 307, 413, 415, 416, 676, 693]
 const fogs = [244, 1041]
@@ -1424,7 +1597,54 @@ function loadXray() {
 
 }
 
+/*
+function drow(i, img, ctx) {
+    if (img.localName == 'img') {
+        if (img['ⵠᐃᐃⲆᐃⵠⲆ'] == 0) {
+            img.src = img.baseURI + img['ⵠᐃᐃᐃΔ']
+        }
+    }
 
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = 6;
+    ctx.fillStyle = "red";
+    ctx.strokeStyle = "black";
+    ctx.font = "50px Baloo Paaji";
+    if (img) ctx.drawImage(img, 500, 300);
+    ctx.strokeText(i, 500, 250);
+    ctx.fillText(i, 500, 250);
+    ctx.restore();
+
+}
+
+
+function draw(i, ctx) {
+    if (!unsafeWindow['Ⲇⵠ'][i].length) return;
+    for (let k = 0; k < unsafeWindow['Ⲇⵠ'][i].length; k++) {
+        if (!unsafeWindow['Ⲇⵠ'][i][k]) return;
+        if (!unsafeWindow['Ⲇⵠ'][i][k].length) {
+            drow(i, unsafeWindow['Ⲇⵠ'][i][k], ctx);
+            return;
+        } else {
+            for (let l = 0; l < unsafeWindow['Ⲇⵠ'][i].length; l++) {
+                if (!unsafeWindow['Ⲇⵠ'][i][k][l]) return;
+                if (!unsafeWindow['Ⲇⵠ'][i][k][l].length) {
+                    drow(i, unsafeWindow['Ⲇⵠ'][i][k][l], ctx);
+                    return;
+                } else {
+                    drow(i, unsafeWindow['Ⲇⵠ'][i][k][l][0], ctx);
+                    return;
+                }
+            }
+        };
+
+
+        return copy_game["ᐃⲆᐃ"][chest.action / 2 - 1]["info"]["ⵠΔ"][0];
+    }
+}
+*/
 
 
 // Xray!!!
@@ -1512,12 +1732,9 @@ function loadSpikes() {
 
 
 function colors() {
-    // requestAnimationFrame(colors)
-
     if (!unsafeWindow.ReiditeSpikeAlly) {
         loadSpikes();
     };
-
 
     if (true) {
         let ITEMS = {
@@ -1597,6 +1814,18 @@ function colors() {
 }
 
 
+function drawMob(ctx, mob) {
+    ctx.font = '20px Baloo Paaji';
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    keys = Object.keys(mob)
+
+    ctx.strokeText(mob.action, script.user.cam.x + mob.x, script.user.cam.y + mob.y + 40);
+    //ctx.fillText(mob.action, script.user.cam.x + mob.x, script.user.cam.y + mob.y + 40);
+}
+
+
 function updater() {
     requestAnimationFrame(updater)
 
@@ -1604,6 +1833,7 @@ function updater() {
 
     script.user.alive = user[Object.keys(user)[10]];
 
+    // draw(id_tings, unsafeWindow.ctx);
 
 
     let i = 22.5;
@@ -1648,7 +1878,13 @@ function updater() {
         script.user.cam.x = user[Object.keys(user)[28]].x
         script.user.cam.y = user[Object.keys(user)[28]].y
         script.user.team = user[Object.keys(user)[21]]
-
+        try {
+            let myPlayer = script.world.fast_units[script.user.uid];
+        } catch (error) {
+            Settings.textalert.t = "Error loading script"
+            Settings.textalert.e = true
+            return
+        }
         let myPlayer = script.world.fast_units[script.user.uid];
         mypid = myPlayer[Object.keys(myPlayer)[1]]
 
@@ -1802,6 +2038,7 @@ function updater() {
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
                     ctx.stroke();
+                    // drawMob(ctx, mobs[i]);
                 };
             }
             if (Settings.WolfTracers) {
@@ -1813,6 +2050,7 @@ function updater() {
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
                     ctx.stroke();
+                    // drawMob(ctx, mobs[i])
                 };
             }
             if (Settings.RabbitTracers) {
@@ -1835,6 +2073,7 @@ function updater() {
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
                     ctx.stroke();
+                    // drawMob(ctx, mobs[i])
                 };
             }
             if (Settings.VultureTracers) {
@@ -2158,6 +2397,7 @@ function updater() {
 
 function mainscript() {
     if (!script.user.alive) return
+
     if (Settings.AutoBreadPut.e) {
         var mils = units[32];
         for (let i = 0; i < mils.length; ++i) {
@@ -2414,6 +2654,7 @@ function main() {
     colors()
     recycle()
     aimbot()
+    autofarm()
 
     setInterval(() => {
         mainscript()

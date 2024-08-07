@@ -1,0 +1,12 @@
+function autoresp() {
+    let _0x36da2b = Object.keys(client)[137];
+    let _0x172688 = Object.keys(client)[136];
+    let _0x34844e = 'ⲆᐃⲆΔⲆΔⵠ'
+    let _0x130c89 = client[_0x36da2b];
+    log(_0x36da2b, _0x172688, _0x34844e);
+    log(123, client, this);
+    client[_0x36da2b] = function () {
+        log(4, this); // WebSocket
+        return Settings.PathFinder.autoRestart && (client[_0x172688](), this['waiting'] = ![], this[_0x34844e]()), _0x130c89.apply(this, arguments);
+    };
+}

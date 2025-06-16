@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кнопка с SVG фигуркой</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+
+        .circle-button {
+            width: 35px;
+            height: 35px;
+            background-color: #4CAF50;
+            border: none;
+            border-top-right-radius: 0;
+            border-top-left-radius: 30%;
+            border-bottom-left-radius: 30%;
+            border-bottom-right-radius: 30%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .circle-button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        .circle-button:active {
+            transform: scale(0.95);
+        }
+
+        .svg-icon {
+            width: 90%;
+            height: 90%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <button class="circle-button">
+        <!-- SVG фигурка (скруглённый квадратик) -->
+        <svg class="svg-icon" viewBox="0 0 100 100">
+            <rect x="15%" y="15%" width="70%" height="70%" rx="30%" ry="30%" fill="white" />
+            <rect x="50%" y="15%" width="35%" height="35%" fill="white" />
+        </svg>
+    </button>
+
+</body>
+
+</html>
+

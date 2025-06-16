@@ -1,0 +1,5 @@
+client - 17
+mouse - 2
+game - 12
+world = 0
+user - 29

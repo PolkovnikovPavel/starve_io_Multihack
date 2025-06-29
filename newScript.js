@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Multihack V3
+// @name         Multihack V5
 // @namespace    http://tampermonkey.net/
-// @version      2024-05-20
+// @version      2025-06-29
 // @description  Всё что нужно для реального пацана
 // @author       setorg
 // @match        https://starve.io/*
@@ -9,6 +9,15 @@
 // @grant        unsafeWindow
 // @require      https://code.jquery.com/jquery-3.4.1.min.js
 // ==/UserScript==
+
+// TODO
+// Добавить счётчик поставленных предметов
+
+// Таймер бури  ??? хз как
+// Переформировать меню
+
+// переводчик ?? хз какое api использовать
+
 
 let disableVideo = () => { }
 
@@ -31,6 +40,12 @@ let _this;
 let log = console.log
 let LAST_RECYCLE
 let master = Symbol()
+let isError = false;
+const is_debug = false;
+
+let craftImg, craftItems, craftHelperE, spanCraftTargetCount;
+let craft_tree = {};
+
 
 
 const abc = 'ABCDEFGHIJKLMNEWOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz';
@@ -55,12 +70,19 @@ function ads() {
     document.head.appendChild(style);
 }
 
+function log_debug(x) {
+    const keys = Object.keys(x);
+    for (let i = 0; i < keys.length; i++) {
+        log(i, keys[i], x[keys[i]]);
+    }
+}
+
 
 const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "timeout");
 const originalIdleDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "IDLE");
 const originalOptionsDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "options");
 const originalModeDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "mode");
-const originalMappingDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "mapping");
+const originalWaitingDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, "waiting");
 
 function hooks() {
     Object.defineProperty(Object.prototype, "timeout", {
@@ -104,15 +126,6 @@ function hooks() {
         },
         configurable: true,
     });
-    // Object.defineProperty(Object.prototype, "opacity", {
-    //     get() {
-    //         this._myProperty = 0.5
-    //         return this._myProperty
-    //     },
-    //     set(data) {
-    //         this._myProperty = data;
-    //     },
-    // })
 
     Object.defineProperty(Object.prototype, "options", {
         get() {
@@ -179,33 +192,67 @@ function hooks() {
         },
         configurable: true,
     });
+
+    Object.defineProperty(Object.prototype, "waiting", {
+        get() {
+            return this[master]
+        },
+        set(data) {
+            this[master] = data;
+            if (!_this) {
+                _this = this;
+                console.log('_this', Object.keys(_this), _this);
+            }
+            setTimeout(() => {
+                if (originalWaitingDescriptor) {
+                    Object.defineProperty(Object.prototype, "waiting", originalWaitingDescriptor);
+                } else delete Object.prototype.waiting;
+                console.log('OLD waiting');
+            }, 0);
+        },
+        configurable: true
+    });
 }
 hooks();
 
+if (is_debug) {
+    log("after hooks waiting", Object.getOwnPropertyDescriptor(Object.prototype, "waiting"));
+    log("after hooks IDLE", Object.getOwnPropertyDescriptor(Object.prototype, "IDLE"));
+    log("after hooks timeout", Object.getOwnPropertyDescriptor(Object.prototype, "timeout"));
+    setTimeout(() => {
+        console.log('after OLD waiting', Object.getOwnPropertyDescriptor(Object.prototype, "waiting"));
+        console.log('after OLD IDLE', Object.getOwnPropertyDescriptor(Object.prototype, "IDLE"));
+        console.log('after OLD timeout', Object.getOwnPropertyDescriptor(Object.prototype, "timeout"));
+    }, 10000);
+}
+
+let craft_rules = {}
 
 
 const packets = {
-    Iamhere: 21,
-    move: 11,
-    drop: 24,
-    dropall: 31,
-    millPut: 30,
-    millTake: 4,
-    breadTake: 13,
-    breadPutWood: 14,
-    breadPutBatter: 25,
-    extPut: 27,
-    extTake: 37,
-    placeBuild: 22,
-    joinTotem: 17,
-    angle: 0,
-    attack: 36,
-    stopAttack: 16,
-    chestPut: 1,
-    chestTake: 8,
-    equip: 34,
-    recycle: 18,
-    craft: 26,
+    speak: 5,
+    Iamhere: 15,
+    move: 14,
+    drop: 35,
+    dropall: 27,
+    millPut: 37,
+    millTake: 20,
+    breadTake: 25,
+    breadPutWood: 36,
+    breadPutBatter: 1,
+    extPut: 11,
+    extTake: 21,
+    placeBuild: 17,
+    joinTotem: 12,
+    angle: 10,
+    attack: 19,
+    stopAttack: 38,
+    chestPut: 24,
+    chestTake: 9,
+    equip: 33,
+    recycle: 31,
+    craft: 13,
+    buy: 22
 };
 
 let script = {
@@ -235,6 +282,7 @@ let script = {
         alive: false,
         ghost: false,
         gauges: {}
+
     },
     myPlayer: {
         x: 0,
@@ -264,19 +312,357 @@ disableVideo = () => {
     });
 };
 
+function disable_exapush_popup() {
+    // Удаление рекламки
+    const popup = document.getElementById('exapush-popup');
+    if (popup) { popup.style.display = 'none'; }
+}
+
 
 const SandstormImage = new Image();
 SandstormImage.src = "https://raw.githubusercontent.com/XmreLoux/images/main/sandstorm.png";
 const BlizzardImage = new Image();
 BlizzardImage.src = "https://raw.githubusercontent.com/XmreLoux/images/main/blizzard.png";
 const fly = 'ⲆⵠⲆⵠⲆᐃⲆ';
+const fly2 = "\u0073\u0074\u006f\u0070\u0020\u0070\u006c\u0073";
 let skins = [];
 let lootboxes = [];
 let scriptId;
-let id_tings = 124;
+let id_tings = 40;
 OpenedNode = { e: true, node: null, a: 0.8, x: 0, y: 0, lastX: 0, lastY: 0, isPressed: false, isFocus: false, styleSheet: null, script_menu_button1: null, script_menu_button2: null }
 
+let Ids = {
+    counter: 0,
+    is_set: false,
+    units: 5,
+    fast_units: 20,
+    gauges: 61,
+    uid: 18,
+    team: 23,
+    isAlive: 10,
+    cam: 38,
+    inv: 73,
+    webSocket: 0,
+    game_img: 63,
+    blizzard: 86,
+    sandstorm: 85,
+    autofeed: 75,
+    players_list: 4,
+    turn: 134,
+    movement: 135,
+    block2: 30,
+    back_to_lobby: 56,
+    commands: 266,
+}
 
+let Keys = {
+    is_set: false,
+    units: 5,
+    fast_units: 20,
+    gauges: 61,
+    uid: 18,
+    team: 23,
+    isAlive: 10,
+    cam: 38,
+    inv: 73,
+    webSocket: 0,
+    game_img: 63,
+    blizzard: 86,
+    sandstorm: 85,
+    autofeed: 75,
+    players_list: 4,
+    turn: 156,
+    movement: 157,
+    block2: 30,
+    back_to_lobby: 56,
+    commands: 266,
+}
+
+
+function set_all_ids(user, world, game, mouse, client) {
+    if (Ids.is_set) return true;
+    if (Ids.counter < 20) { Ids.counter += 1; return false; }
+
+    function get_fast_units(world, uid) {
+        const keys = Object.keys(world);
+        const foundKey = keys.find(key => {
+            const value = world[key];
+            if (typeof value !== "object") return false;
+            return value.length && value[uid] != null && "id" in value[uid] && value[uid].id == 0 && "x" in value[uid] && "y" in value[uid];
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of fast_units NOT FOUND! uses default = 20");
+        return 20;
+    }
+
+    function get_units(world) {
+        const keys = Object.keys(world);
+        const foundKey = keys.find(key => {
+            const value = world[key];
+            return value && typeof value.length === 'number' && value.length >= 105 && value.length <= 120;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of units NOT FOUND! uses default = 5");
+        return 5;
+    }
+
+    function get_gauges(user) {
+        const keys = Object.keys(user);
+
+        const foundKey = keys.find(key => {
+            const value = user[key];
+            if (!value || typeof value !== 'object') return false;
+            const numbers = Object.values(value).filter(
+                v => typeof v === 'number' && v >= 0 && v <= 1
+            );
+            return numbers.length === 6 && "c" in value;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of gauges NOT FOUND! uses default = 61");
+        return 61;
+    }
+
+    function get_uid(user) {
+        const keys = Object.keys(user);
+        const uid = user.id * 1000;
+        const foundKey = keys.find(key => {
+            return user[key] == uid;
+        });
+        if (foundKey) { return keys.indexOf(foundKey); }
+        console.error("id of uid NOT FOUND! uses default = 18");
+        return 18;
+    }
+
+    function get_isAlive(user) {
+        const keys = Object.keys(user);
+        const idIndex = keys.indexOf("reconnect");
+        if (idIndex !== -1 && idIndex < keys.length) { return idIndex - 1; }
+        console.error("id of isAlive NOT FOUND! uses default = 10");
+        return 10;
+    }
+
+    function get_team(user) {
+        const keys = Object.keys(user);
+        const foundKey = keys.find(key => {
+            const value = user[key];
+            if (!Array.isArray(value)) return false;
+            return value.length === 0 || value.includes(user["id"]);
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of team NOT FOUND! uses default = 23");
+        return 23;
+    }
+
+    function get_cam(user) {
+        const keys = Object.keys(user);
+        const foundKey = keys.find(key => {
+            const value = user[key];
+            if (!value || typeof value !== 'object') return false;
+            return 'x' in value && 'y' in value && 'rx' in value && 'ry' in value;
+        });
+        if (foundKey) { return keys.indexOf(foundKey); }
+        console.error("id of cam NOT FOUND! uses default = 38");
+        return 38;
+    }
+
+    function get_inv(user) {
+        const keys = Object.keys(user);
+        const foundKey = keys.find(key => {
+            const value = user[key];
+            if (!value || typeof value !== 'object') return false;
+            return 'id' in value && 'max' in value && Object.values(value).filter(Array.isArray).length == 2;
+        });
+        if (foundKey) { return keys.indexOf(foundKey); }
+        console.error("id of inv NOT FOUND! uses default = 73");
+        return 73;
+    }
+
+    function get_game_img(game) {
+        const keys = Object.keys(game);
+        const foundKey = keys.find(key => {
+            const value = game[key];
+            if (!Array.isArray(value)) return false;
+            return value.length > 350;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of game_img NOT FOUND! uses default = 63");
+        return 63;
+    }
+
+    function get_sandstorm(user) {
+        const keys = Object.keys(user);
+        const foundKey = keys.find(key => {
+            const value = user[key];
+            if (!value || typeof value !== 'object') return false;
+            const valueKeys = Object.keys(value);
+            if (valueKeys.length !== 5) return false;
+            return (
+                Array.isArray(value[valueKeys[0]]) &&
+                Number.isInteger(value[valueKeys[1]]) &&
+                Number.isInteger(value[valueKeys[2]]) &&
+                typeof value[valueKeys[3]] === 'function' &&
+                typeof value[valueKeys[4]] === 'function'
+            );
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of sandstorm NOT FOUND! uses default = 85");
+        return 85;
+    }
+
+    function get_autofeed(user) {
+        const keys = Object.keys(user);
+        const foundKey = keys.find(key => {
+            const value = user[key];
+            if (!value || typeof value !== 'object') return false;
+            const valueKeys = Object.keys(value);
+            if (valueKeys.length !== 5) return false;
+            return "enabled" in value && "translate" in value;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of autofeed NOT FOUND! uses default = 75");
+        return 75;
+    }
+
+    function get_players_list(world) {
+        const keys = Object.keys(world);
+        const foundKey = keys.find(key => {
+            const value = world[key];
+            if (!value || !Array.isArray(value)) return false;
+            return value.length == 100;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of players_list NOT FOUND! uses default = 4");
+        return 4;
+    }
+
+    function get_block2(game) {
+        let recipe_craft = document.getElementById("recipe_craft");
+        const keys = Object.keys(game);
+        const foundKey = keys.find(key => {
+            const value = game[key];
+            if (!value || typeof value !== 'object') return false;
+            if (!value.hasOwnProperty("button") || !value.hasOwnProperty("list")) return false;
+            return value.list.id == recipe_craft;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of block2 NOT FOUND! uses default = 30");
+        return 30;
+    }
+
+    function get_commands() {
+        const keys = Object.keys(unsafeWindow);
+        const foundKey = keys.find(key => {
+            const value = unsafeWindow[key];
+            if (!value || !Array.isArray(value)) return false;
+            return value.length > 300 && value.length < 350;
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of commands NOT FOUND! uses default = 266");
+        return 266;
+    }
+
+    function get_func_back_to_lobby(client) {
+        const keys = Object.keys(client);
+        const foundKey = keys.find(key => {
+            const value = client[key];
+            if (!value || typeof client[key] != 'function') return false;
+            const funcStr = client[key].toString();
+            if (!funcStr.includes(Keys.commands)) return false;
+            let num = funcStr.slice(funcStr.indexOf(Keys.commands) + Keys.commands.length + 1, funcStr.slice(funcStr.indexOf(Keys.commands) + Keys.commands.length + 1).indexOf(']') + funcStr.indexOf(Keys.commands) + Keys.commands.length + 1);
+            return funcStr.includes('.reconnect.enabled=') && funcStr.includes('clearTimeout') && unsafeWindow[Keys.commands][num] == "close"
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of commands NOT FOUND! uses default = 266");
+        return 266;
+    }
+
+    function containsNumberInAnyBase(str, targetNumber) {
+        // Создаем регулярные выражения для всех систем счисления
+        const representations = [
+            new RegExp(`(^|\\D)${targetNumber}(\\D|$)`, 'g'),
+            // Восьмеричная система (0o... или 0...)
+            new RegExp(`(^|\\D)0o${targetNumber.toString(8)}(\\D|$)`, 'gi'),
+            new RegExp(`(^|\\D)0${targetNumber.toString(8)}(\\D|$)`, 'g'),
+            // Шестнадцатеричная система (0x...)
+            new RegExp(`(^|\\D)0x${targetNumber.toString(16)}(\\D|$)`, 'gi')
+        ];
+
+        return representations.some(regex => regex.test(str));
+    }
+
+    function get_turn(client) {
+        const keys = Object.keys(client);
+        const foundKey = keys.find(key => {
+            const value = client[key];
+            if (!value || typeof value != 'function') return false;
+            const funcStr = value.toString();
+            if (!funcStr.includes(Keys.webSocket)) return false;
+            return funcStr.includes('Math.PI') && !funcStr.includes(';if') && funcStr.includes('.stringify([') && containsNumberInAnyBase(funcStr, packets.angle) && containsNumberInAnyBase(funcStr, 255);
+        });
+
+        if (foundKey) { return keys.indexOf(foundKey); }
+
+        console.error("id of turn NOT FOUND! uses default = 134");
+        return 134;
+    }
+
+    Ids.uid = get_uid(user); Keys.uid = Object.keys(user)[Ids.uid];
+    Ids.fast_units = get_fast_units(world, user[Keys.uid]); Keys.fast_units = Object.keys(world)[Ids.fast_units];
+    Ids.units = get_units(world); Keys.units = Object.keys(world)[Ids.units];
+    Ids.gauges = get_gauges(user); Keys.gauges = Object.keys(user)[Ids.gauges];
+    Ids.team = get_team(user); Keys.team = Object.keys(user)[Ids.team];
+    Ids.isAlive = get_isAlive(user); Keys.isAlive = Object.keys(user)[Ids.isAlive];
+    Ids.cam = get_cam(user); Keys.cam = Object.keys(user)[Ids.cam];
+    Ids.inv = get_inv(user); Keys.inv = Object.keys(user)[Ids.inv];
+    Ids.webSocket = 0; Keys.webSocket = Object.keys(client)[Ids.webSocket];
+    Ids.game_img = get_game_img(game); Keys.game_img = Object.keys(game)[Ids.game_img];
+    Ids.sandstorm = get_sandstorm(user); Keys.sandstorm = Object.keys(user)[Ids.sandstorm];
+    Ids.blizzard = Ids.sandstorm + 1; Keys.blizzard = Object.keys(user)[Ids.blizzard];
+    Ids.autofeed = get_autofeed(user); Keys.autofeed = Object.keys(user)[Ids.autofeed];
+    Ids.players_list = get_players_list(world); Keys.players_list = Object.keys(world)[Ids.players_list];
+    Ids.block2 = get_block2(game); Keys.block2 = Object.keys(game)[Ids.block2];
+    Ids.commands = get_commands(); Keys.commands = Object.keys(unsafeWindow)[Ids.commands];
+    Ids.back_to_lobby = get_func_back_to_lobby(client); Keys.back_to_lobby = Object.keys(client)[Ids.back_to_lobby];
+    Ids.turn = get_turn(client); Keys.turn = Object.keys(client)[Ids.turn];
+    Ids.movement = Ids.turn + 1; Keys.movement = Object.keys(client)[Ids.movement];
+
+
+    Ids.is_set = true;
+    Keys.is_set = true;
+    log(Ids, Keys);
+    log("==============");
+
+    return true;
+}
+
+let Crafting = {
+    isCraft: false,
+    id: -1,
+    old_count: 0,
+    now: Date.now()
+}
 
 let Settings = {
     RemoveHands: { k: "ShiftLeft" },
@@ -337,6 +723,8 @@ let Settings = {
 
     },
     Autofarm: {
+        comand: ".",
+        isDropBerries: false,
         e: false,
         k: "KeyJ",
         'water': ![],
@@ -423,6 +811,14 @@ let Settings = {
         e: false,
         k: "AltRight"
     },
+    AutoShop: {
+        wood: { e: false },
+        stone: { e: false },
+        gold: { e: false },
+        diamond: { e: false },
+        amethyst: { e: false },
+        reidite: { e: false }
+    },
     SkinChanger_Skin: 233,
     SkinChanger_LootBox: 220,
     AMB_V2: false,
@@ -444,6 +840,7 @@ let Settings = {
     textalert: { e: false, t: "none" },
     fps: { e: true, last: 0, count: 0, fps: 0 },
     buildinfo: true,
+    machineInfo: true,
     ChestInfo: true,
     ChestInfo2: true,
     DropInChest: { id: 109, count: 255 },
@@ -452,9 +849,12 @@ let Settings = {
     showNames: true,
     showFly: false,
     showScore: true,
-    showHp: true,
-    showHpPlayer: true,
-    showMyHp: true,
+    showHp: false,
+    showHpPlayer: false,
+    showMyHp: false,
+    showHealTimer: true,
+    showWeaponTimer: true,
+    playerOnTop: true,
     ColoredSpikes: false,
     AutoBridge: false,
     autoRespawn: false,
@@ -464,6 +864,7 @@ let Settings = {
     AutoExtractorPut: { e: false, k: "KeyP" },
     AutoExtractorTake: { e: false, k: "KeyO" },
     AutoCraft: { e: false, k: "KeyK", lastcraft: -1, s: false },
+    SmartCraft: { e: false, k: "Numpad2", lastcraft: -1 },
     AutoRecycle: { e: false, k: "KeyL", lastrecycle: -1, s: false },
     AutoSpike: { e: false, k: "Space", m: true, p: ["Reidite Spike", "Amethyst Spike", "Diamond Spike", "Gold Spike", "Stone Spike", "Wood Spike", "Wood Wall"] },
     'nows': {
@@ -482,6 +883,12 @@ let Settings = {
         'SwordInchest': Date.now(),
         'autospike': Date.now(),
         'autofarm': Date.now()
+    },
+    debug: {
+        units_id: { e: false },
+        show_items: { e: false },
+        show_sprites: { e: false },
+        player_action: { e: false },
     }
 }
 
@@ -493,13 +900,22 @@ setTimeout(() => {
             if (!world || !client) return
             console.log(sdpfin, Object.keys(world).length, Object.keys(client).length);
             if (!sdpfin || Object.keys(world).length < 30 || !client || Object.keys(client).length < 30) {
+                isError = true;
                 Settings.textalert.t = 'Error loading script';
                 Settings.textalert.e = true;
+                let count_reloads = parseInt(localStorage.getItem("count_reloads"), 10);
+                if (!count_reloads) { count_reloads = 0; }
+                if (count_reloads < 3) {
+                    location.reload();
+                    localStorage.setItem("count_reloads", count_reloads + 1);
+                }
                 return;
             };
+            localStorage.setItem("count_reloads", 0);
 
             clearInterval(scriptId);
             setNewUI();
+            add_recipe_helper();
             Settings.textalert.e = false;
         },
         controls: null,
@@ -541,12 +957,6 @@ setTimeout(() => {
             if (!unsafeWindow.document.body) return
             log('id', intId)
             clearInterval(intId);
-            // document.addEventListener("keypress", event => {
-            //     if (chatxterm()) return;
-            //     if (event.code === Settings.spectator.k && !Settings.spectator.e) {
-            //         // client[Object.keys(client)[0]].send([11, 0]);
-            //     };
-            // });
 
 
             document.addEventListener("keydown", (e) => {
@@ -607,10 +1017,10 @@ setTimeout(() => {
                             Settings.spectator.timeout = Date.now()
                             Settings.spectator.is_back = true
                         } else {
-                            Settings.spectator.x = user[Object.keys(user)[28]].x
-                            Settings.spectator.y = user[Object.keys(user)[28]].y
-                            Settings.spectator.start_x = user[Object.keys(user)[28]].x
-                            Settings.spectator.start_y = user[Object.keys(user)[28]].y
+                            Settings.spectator.x = user[Keys.cam].x
+                            Settings.spectator.y = user[Keys.cam].y
+                            Settings.spectator.start_x = user[Keys.cam].x
+                            Settings.spectator.start_y = user[Keys.cam].y
                             Settings.spectator.is_back = false
                         }
                         Settings.spectator.e = !Settings.spectator.e
@@ -630,6 +1040,12 @@ setTimeout(() => {
                         break;
                     case Settings.PathFinder.k:
                         Settings.PathFinder.e = !Settings.PathFinder.e
+                        flag = true;
+                        break;
+                    case Settings.SmartCraft.k:
+                        reCalculateCraftTree();
+                        Settings.SmartCraft.e = !Settings.SmartCraft.e;
+                        if (Settings.SmartCraft.e) Crafting.now = 0;
                         flag = true;
                         break;
                     case Settings.TurnOffScript.k:
@@ -654,19 +1070,22 @@ setTimeout(() => {
                     case "ArrowRight":
                         id_tings += 1;
                         console.log(id_tings);
-
-                        // DEBUG
-                        // log('client', Object.keys(client), client)
-                        // log('mouse', Object.keys(mouse), mouse)
-                        // log('game', Object.keys(game), game)
-                        // log('world', Object.keys(world), world)
-                        // log('user', Object.keys(user), user)
-
-
                         break
                     case "ArrowLeft":
                         id_tings -= 1;
                         console.log(id_tings);
+                        break
+                    case "ArrowUp":
+                        // DEBUG
+                        log('client', Object.keys(client), client);
+                        log('_this', Object.keys(_this), _this);
+                        log('mouse', Object.keys(mouse), mouse);
+                        log('game', Object.keys(game), game);
+                        log('world', Object.keys(world), world);
+                        log('user', Object.keys(user), user);
+
+                        log_debug(unsafeWindow);
+
                         break
                     case "KeyW":
                         Settings.spectator.is_y = 1;
@@ -757,6 +1176,7 @@ setTimeout(() => {
             Settings.Xray.e = false;
             Settings.spectator.e = false;
             Settings.TurnOffScript.e = false;
+            Settings.SmartCraft.e = false;
             Settings.PathFinder.e = false; Settings.PathFinder.dist = 130;
             Settings.spectator.timeout = 0; Settings.spectator.is_back = false; Settings.spectator.count = 0; Settings.spectator.x = 0; Settings.spectator.y = 0; Settings.spectator.start_x = 0; Settings.spectator.start_y = 0; Settings.spectator.end_x = 0; Settings.spectator.end_y = 0; Settings.spectator.player = null;
 
@@ -1141,8 +1561,6 @@ const script_menu = document.createElement('div');
 script_menu.id = 'main_menu_script'
 
 function setNewUI() {
-    log(11111);
-
     const root = new TreeNode('Script menu', null, script_menu);
     const Visuals = new TreeNode('Visual', root, script_menu);
     const Misc = new TreeNode('Misc', root, script_menu);
@@ -1153,7 +1571,9 @@ function setNewUI() {
     const PathFinder = new TreeNode('Path Finder', root, script_menu);
     const Drop_in_Chest = new TreeNode('Drop in chest', root, script_menu);
     const TokenSetter = new TreeNode('Token setter', root, script_menu);
+    const Debug = new TreeNode('Debug', root, script_menu);
     const Aimbot = new TreeNode('Aimbot', Misc, script_menu);
+    const Shop = new TreeNode('Shop', Misc, script_menu);
 
     const UI = new TreeNode('UI settings', Visuals, script_menu);
     const Map = new TreeNode('Mini Map', Visuals, script_menu);
@@ -1163,14 +1583,18 @@ function setNewUI() {
     Visuals.addChild(new Field({ type: 'checkbox', label: 'FPS', object: Settings.fps, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'Gauges', object: Settings, property: 'gaugesInfo', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'BuildInfo', object: Settings, property: 'buildinfo', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Visuals.addChild(new Field({ type: 'checkbox', label: 'MachineInfo', object: Settings, property: 'machineInfo', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'ChestInfo', object: Settings, property: 'ChestInfo', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'TotemInfo', object: Settings, property: 'toteminfo', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'BoxInfo', object: Settings, property: 'boxinfo', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'ShowNames', object: Settings, property: 'showNames', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'showScore', object: Settings, property: 'showScore', onChange: data => { kasdgiksadg.saveSettings(); } }));
-    Visuals.addChild(new Field({ type: 'checkbox', label: 'show HP', object: Settings, property: 'showHp', onChange: data => { kasdgiksadg.saveSettings(); } }));
-    Visuals.addChild(new Field({ type: 'checkbox', label: 'show player HP', object: Settings, property: 'showHpPlayer', onChange: data => { kasdgiksadg.saveSettings(); } }));
-    Visuals.addChild(new Field({ type: 'checkbox', label: 'show my HP', object: Settings, property: 'showMyHp', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Visuals.addChild(new Field({ type: 'checkbox', label: 'playerOnTop', object: Settings, property: 'playerOnTop', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Visuals.addChild(new Field({ type: 'checkbox', label: 'weaponTimer', object: Settings, property: 'showWeaponTimer', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Visuals.addChild(new Field({ type: 'checkbox', label: 'show Heal Timer', object: Settings, property: 'showHealTimer', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    // Visuals.addChild(new Field({ type: 'checkbox', label: 'show HP', object: Settings, property: 'showHp', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    // Visuals.addChild(new Field({ type: 'checkbox', label: 'show player HP', object: Settings, property: 'showHpPlayer', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    // Visuals.addChild(new Field({ type: 'checkbox', label: 'show my HP', object: Settings, property: 'showMyHp', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'ColoredSpikes', object: Settings, property: 'ColoredSpikes', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: 'checkbox', label: 'NoFog', object: Settings, property: 'NoFog', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Visuals.addChild(new Field({ type: "range", label: "Xray", min: 0, max: 1, step: 0.1, object: Settings.Xray, property: "a", onChange: data => { Settings.Xray.ready = false; kasdgiksadg.saveSettings(); } }));
@@ -1210,9 +1634,25 @@ function setNewUI() {
     Aimbot.addChild(new Field({ type: 'checkbox', label: 'Aim rotation', object: Settings, property: 'AMB_rotation', onChange: data => { kasdgiksadg.saveSettings(); } }));
     Aimbot.addChild(new Field({ type: 'setkey', label: 'Set Aimbot Key', property: 'k', object: Settings.AMB, action: data => { kasdgiksadg.controls.setKeyBind('AMB'); } }));
 
+    Shop.addChild(new Field({ type: 'checkbox', label: 'AutoWood', object: Settings.AutoShop.wood, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Shop.addChild(new Field({ type: 'button', label: 'Buy wood', label2: 'Buy', action: data => { buyResMax(0); } }));
+    Shop.addChild(new Field({ type: 'checkbox', label: 'AutoStone', object: Settings.AutoShop.stone, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Shop.addChild(new Field({ type: 'button', label: 'Buy stone', label2: 'Buy', action: data => { buyResMax(1); } }));
+    Shop.addChild(new Field({ type: 'checkbox', label: 'AutoGold', object: Settings.AutoShop.gold, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Shop.addChild(new Field({ type: 'button', label: 'Buy gold', label2: 'Buy', action: data => { buyResMax(2); } }));
+    Shop.addChild(new Field({ type: 'checkbox', label: 'AutoDiamond', object: Settings.AutoShop.diamond, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Shop.addChild(new Field({ type: 'button', label: 'Buy diamond', label2: 'Buy', action: data => { buyResMax(3); } }));
+    Shop.addChild(new Field({ type: 'checkbox', label: 'AutoAmethyst', object: Settings.AutoShop.amethyst, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Shop.addChild(new Field({ type: 'button', label: 'Buy amethyst', label2: 'Buy', action: data => { buyResMax(4); } }));
+    Shop.addChild(new Field({ type: 'checkbox', label: 'AutoReidite', object: Settings.AutoShop.reidite, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Shop.addChild(new Field({ type: 'button', label: 'Buy reidite', label2: 'Buy', action: data => { buyResMax(5); } }));
 
     AutoFarm.addChild(new Field({ type: 'checkbox', label: 'Start Autofarm', object: Settings.Autofarm, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
     AutoFarm.addChild(new Field({ type: 'checkbox', label: 'Auto water', object: Settings.Autofarm, property: 'water', onChange: data => { kasdgiksadg.saveSettings(); } }));
+
+    AutoFarm.addChild(new Field({ type: 'text', label: 'Drop command', object: Settings.Autofarm, property: 'comand', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    AutoFarm.addChild(new Field({ type: 'checkbox', label: 'is DropBerries', object: Settings.Autofarm, property: 'isDropBerries', onChange: data => { kasdgiksadg.saveSettings(); } }));
+
     AutoFarm.addChild(new Field({ type: 'button', label: 'Top left of farm', label2: 'set pos', action: data => { mp = myplayer(); mp && (Settings.Autofarm['x'] = mp.x, Settings.Autofarm['y'] = mp.y); OpenedNode.node.openFolder(OpenedNode.node); } }));
     AutoFarm.addChild(new Field({ type: 'button', label: 'Bottom right of farm', label2: 'set pos', action: data => { mp = myplayer(); mp && (Settings.Autofarm['xx'] = mp.x, Settings.Autofarm['yy'] = mp.y); OpenedNode.node.openFolder(OpenedNode.node); } }));
     AutoFarm.addChild(new Field({ type: 'button', label: 'Safe Point', label2: 'set pos', action: data => { mp = myplayer(); mp && (Settings.Autofarm['sx'] = mp.x, Settings.Autofarm['sy'] = mp.y); OpenedNode.node.openFolder(OpenedNode.node); } }));
@@ -1228,7 +1668,8 @@ function setNewUI() {
     AutoSpike.addChild(new Field({ type: 'checkbox', label: 'G Spike mode', object: Settings, property: 'AutoSpikeMode2', onChange: data => { kasdgiksadg.saveSettings(); } }));
     AutoSpike.addChild(new Field({ type: 'setkey', label: 'Set AutoSpike Key', property: 'k', object: Settings.AutoSpike, action: data => { kasdgiksadg.controls.setKeyBind('AutoSpike'); } }));
 
-    AutoCraft_Recycle.addChild(new Field({ type: 'display', label: 'Smart Craft', object: { t: 'coming soon...' }, property: 't' }));
+    AutoCraft_Recycle.addChild(new Field({ type: 'checkbox', label: 'Smart Craft', object: Settings.SmartCraft, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); if (Settings.SmartCraft.e) Crafting.now = 0; reCalculateCraftTree(); } }));
+    AutoCraft_Recycle.addChild(new Field({ type: 'setkey', label: 'Set SmartCraft Key', property: 'k', object: Settings.SmartCraft, action: data => { kasdgiksadg.controls.setKeyBind('SmartCraft'); } }));
     AutoCraft_Recycle.addChild(new Field({ type: 'display', label: '==================' }));
     AutoCraft_Recycle.addChild(new Field({ type: 'checkbox', label: 'AutoCraft', object: Settings.AutoCraft, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
     AutoCraft_Recycle.addChild(new Field({ type: 'checkbox', label: 'SafeMode', object: Settings.AutoCraft, property: 's', onChange: data => { kasdgiksadg.saveSettings(); } }));
@@ -1247,9 +1688,9 @@ function setNewUI() {
     PathFinder.addChild(new Field({ type: 'setkey', label: 'Set PathFinder Key', property: 'k', object: Settings.PathFinder, action: data => { kasdgiksadg.controls.setKeyBind('PathFinder'); } }));
     PathFinder.addChild(new Field({ type: 'checkbox', label: 'Auto Drop', object: Settings.PathFinder, property: 'autoDrop', onChange: data => { kasdgiksadg.saveSettings(); } }));
     PathFinder.addChild(new Field({ type: 'checkbox', label: 'Auto Restart', object: Settings.PathFinder, property: 'autoRestart', onChange: data => { kasdgiksadg.saveSettings(); } }));
-    PathFinder.addChild(new Field({ type: 'range', label: 'set X', min: 0, max: 250, step: 1, object: Settings.PathFinder, property: 'x', onChange: data => { kasdgiksadg.saveSettings(); FTextX.obj.textContent = Settings.PathFinder.x; } }));
-    PathFinder.addChild(new Field({ type: 'range', label: 'set Y', min: 0, max: 250, step: 1, object: Settings.PathFinder, property: 'y', onChange: data => { kasdgiksadg.saveSettings(); FTextY.obj.textContent = Settings.PathFinder.y; } }));
-    PathFinder.addChild(new Field({ type: 'range', label: 'Min Dist', min: 50, max: 250, step: 1, object: Settings.PathFinder, property: 'dist', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    PathFinder.addChild(new Field({ type: 'range', label: 'set X', min: 0, max: 300, step: 1, object: Settings.PathFinder, property: 'x', onChange: data => { kasdgiksadg.saveSettings(); FTextX.obj.textContent = Settings.PathFinder.x; } }));
+    PathFinder.addChild(new Field({ type: 'range', label: 'set Y', min: 0, max: 300, step: 1, object: Settings.PathFinder, property: 'y', onChange: data => { kasdgiksadg.saveSettings(); FTextY.obj.textContent = Settings.PathFinder.y; } }));
+    PathFinder.addChild(new Field({ type: 'range', label: 'Min Dist', min: 50, max: 300, step: 1, object: Settings.PathFinder, property: 'dist', onChange: data => { kasdgiksadg.saveSettings(); } }));
     PathFinder.addChild(new Field({ type: 'button', label: 'Set current Pos', label2: 'set', action: data => { mp = myplayer(); mp && (log(mp), Settings.PathFinder.x = Math.floor(mp.x / 100), Settings.PathFinder.y = Math.floor(mp.y / 100)); OpenedNode.node.openFolder(OpenedNode.node); } }));
     PathFinder.addChild(FTextX);
     PathFinder.addChild(FTextY);
@@ -1269,7 +1710,7 @@ function setNewUI() {
     TokenSetter.addChild(FText2);
     TokenSetter.addChild(FDisplay1);
     TokenSetter.addChild(FDisplay2);
-    TokenSetter.addChild(new Field({ type: 'button', label: 'Go Back To Lobby', action: data => { client[Object.keys(client)[136 + 1]](); } }));
+    TokenSetter.addChild(new Field({ type: 'button', label: 'Go Back To Lobby', action: data => { backToLobby(); } }));
     TokenSetter.addChild(new Field({ type: 'button', label: 'Set Random Token', action: data => { user[Object.keys(user)[14]] = Gen(7); user[Object.keys(user)[15]] = Gen(5); OpenedNode.node.openFolder(OpenedNode.node); } }));
 
     Bind.addChild(new Field({ type: 'setkey', label: 'AutoSteal Key', property: 'k', object: Settings.AutoSteal, action: data => { kasdgiksadg.controls.setKeyBind('AutoSteal'); } }));
@@ -1299,6 +1740,10 @@ function setNewUI() {
     UI.addChild(new Field({ type: 'range', label: 'Script Opacity', min: 0.1, max: 1, step: 0.05, object: Settings.fastOpenUI, property: 'o', onChange: data => { kasdgiksadg.saveSettings(); OpenedNode.styleSheet.textContent = getUIStyle(); } }));
     UI.addChild(new Field({ type: 'range', label: 'Other Opacity', min: 0.1, max: 1, step: 0.05, object: Settings.fastOpenUI, property: 'otherO', onChange: data => { kasdgiksadg.saveSettings(); OpenedNode.styleSheet.textContent = getUIStyle(); } }));
 
+    Debug.addChild(new Field({ type: 'checkbox', label: 'units_id', object: Settings.debug.units_id, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
+    Debug.addChild(new Field({ type: 'checkbox', label: 'show_items', object: Settings.debug.show_items, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); Settings.debug.show_sprites.e = false; } }));
+    Debug.addChild(new Field({ type: 'checkbox', label: 'show_sprites', object: Settings.debug.show_sprites, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); Settings.debug.show_items.e = false; } }));
+    Debug.addChild(new Field({ type: 'checkbox', label: 'player_action', object: Settings.debug.player_action, property: 'e', onChange: data => { kasdgiksadg.saveSettings(); } }));
 
 
     script_menu.appendChild(root.toHtmlDiv());
@@ -1309,8 +1754,8 @@ function setNewUI() {
     script_menu_button1.style.width = '55px';
     script_menu_button1.style.height = '55px';
     script_menu_button1.style.position = 'absolute';
-    script_menu_button1.style.right = '227px';
-    script_menu_button1.style.top = '280px';
+    script_menu_button1.style.right = '230px';
+    script_menu_button1.style.top = '284px';
     script_menu_button1.style.display = '';
     script_menu_button1.className = 'button_img';
 
@@ -1326,8 +1771,8 @@ function setNewUI() {
     OpenedNode.script_menu_button1 = script_menu_button1;
     OpenedNode.script_menu_button2 = script_menu_button2;
 
-    script_menu_button1.src = 'https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/icon_script2_btn1.png?raw=true';
-    script_menu_button2.src = 'https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/icon_script2_btn2.png?raw=true';
+    script_menu_button1.src = 'https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/icon_script_btn1.png?raw=true';
+    script_menu_button2.src = 'https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/icon_script_btn2.png?raw=true';
 
     script_menu_button1.addEventListener('mouseenter', () => {
         script_menu_button1.style.display = 'none';
@@ -1402,6 +1847,20 @@ function setNewUI() {
 function getUIStyle() {
     // Добавляем стили
     const styles = `
+    .hover-opacity {
+        cursor: url(../img/cursor0.png), auto;
+        opacity: 0.5;
+        transition: opacity 0.1s ease-in-out;
+    }
+    .hover-opacity:hover {
+        opacity: 1;
+    }
+    .hover-img-width {
+        transition: transform 0.1s ease-in-out;
+    }
+    .hover-img-width:hover {
+        transform: scale(1.25);
+    }
     .button_style {
         width: 130px;
         margin-right: 70px;
@@ -1541,10 +2000,9 @@ function getUIStyle() {
 
 
 
-
 function send(data) {
     try {
-        client[Object.keys(client)[0]].send(JSON.stringify(data));
+        client[Keys.webSocket].send(JSON.stringify(data));
     } catch (error) {
         if (script.user.alive) {
             Settings.textalert.t = 'Error loading script'
@@ -1554,38 +2012,17 @@ function send(data) {
     }
 }
 
+
 function unit() {
-    // log(Object.keys(world), world);
-    // let units = world[Object.keys(world)[4 + 1]];
     return script.world.units;
 
 }
 
 
 function myplayer() {
-    let fast_units = script.world.fast_units[script.user.uid];
-
-    return fast_units;
-
+    return script.world.fast_units[script.user.uid];
 }
 
-/*
-function pid(obj) {
-    let wow
-    if (unit()[0].length > 0) {
-        unit()[0].forEach((obj) => {
-            for (const e in obj) {
-                if (obj[e] == user.id && e !== "info") {
-                    wow = e;
-                    break; // This will exit the for-in loop
-                }
-            }
-        });
-    }
-
-    return obj.ΔⵠⵠⲆ;
-}
-*/
 
 function chatxterm() {
     if (document.getElementById("chat_block").style.display === 'inline-block' || document.getElementById("commandMainBox").style.display === 'inline-block') {
@@ -1625,6 +2062,348 @@ setInterval(function () {
     jQuery('#ratata').text(currentTimeString);
 }, 1000);
 
+
+////////////////////////////////////////// ##############################
+
+let count_recipe_spin;
+let button_start_craft;
+
+function findItemIdByImg(sourceImage) {
+    if (!game[Keys.game_img]) return -1;
+
+    const img = Object.keys(game[Keys.game_img][0].info)[2];
+    for (let i = 0; i < game[Keys.game_img].length; i++) {
+        const item = game[Keys.game_img][i];
+        if (!item) continue;
+        if (item.info[img] && item.info[img][0]) {
+            src = sourceImage.getAttribute('src');
+            o_src = Object.keys(item.info[img][0])[3];
+            if (item.info[img][0].currentSrc == src || item.info[img][0][o_src] == src) return i;
+            if (item.info[img][1].currentSrc == src || item.info[img][1][o_src] == src) return i;
+            if (item.info[img][2].currentSrc == src || item.info[img][2][o_src] == src) return i;
+        }
+    }
+
+    return -1; // Возвращаем -1 если изображение не найдено
+}
+
+
+function create_craft_tree(need_id, count, inventory, is_root, len = 0) {
+    if (!(need_id in craft_rules)) return { count: count, id: need_id, comp: [], startCount: 0 };
+    if (len > 10) return { count: count, id: need_id, comp: [], startCount: 0 };
+    const comp = craft_rules[need_id];
+    let craft_tree = { count: count, id: need_id, comp: [], startCount: 0 };
+    let inv_count = inventory[need_id];
+    if (!inv_count) inv_count = 0
+    if (is_root) { craft_tree.startCount = inv_count; inv_count = 0; }
+
+    if (inv_count >= count) inventory[need_id] -= count;
+    else if (inv_count != 0) inventory[need_id] = 0;
+
+
+    if (count - inv_count <= 0) return craft_tree;
+    else {
+        for (let i = 0; i < comp.length; i++) {
+            const element = comp[i];
+            let one_comp = create_craft_tree(element[0], element[1] * (count - inv_count), inventory, false, len + 1);
+            craft_tree.comp.push(one_comp);
+        }
+    }
+    return craft_tree;
+}
+
+function recursively_get_ingridients(ingridients, craft_tree, j) {
+    for (let i = 0; i < craft_tree.comp.length; i++) {
+        const comp = craft_tree.comp[i];
+        if (comp.comp.length == 0) {
+            if (comp.id in ingridients) {
+                ingridients[comp.id].j = j;
+                ingridients[comp.id].count += comp.count;
+            } else {
+                ingridients[comp.id] = { id: comp.id, count: comp.count, j: j, is_craft: false };
+            }
+        } else {
+            if (comp.id in ingridients) {
+                ingridients[comp.id].j = j;
+                ingridients[comp.id].count += comp.count;
+            } else {
+                ingridients[comp.id] = { id: comp.id, count: comp.count, j: j, is_craft: true };
+            }
+            recursively_get_ingridients(ingridients, comp, j + 1);
+        }
+    }
+}
+
+function getCraftId(craft_tree) {
+    if (!(craft_tree.id in craft_rules)) return -1;
+    hasinv = inventoryHas(craft_tree.id);
+    need_count = craft_tree.startCount + craft_tree.count;
+    if (hasinv[0] && hasinv[1] >= need_count) return -1;
+    let is_craft = true;
+    for (let i = 0; i < craft_rules[craft_tree.id].length; i++) {
+        const comp = craft_rules[craft_tree.id][i];
+        hasinv = inventoryHas(comp[0]);
+        if (!hasinv[0] || hasinv[1] < comp[1]) {
+            is_craft = false;
+            break;
+        }
+    }
+    hasinv = inventoryHas(craft_tree.id);
+    if (is_craft && (!hasinv[0] || hasinv[1] < need_count)) return craft_tree.id;
+    for (let i = 0; i < craft_tree.comp.length; i++) {
+        const comp = craft_tree.comp[i];
+        let res = getCraftId(comp);
+        if (res != -1) return res;
+    }
+    return -1;
+}
+
+function sortKeysByJ(obj) {
+    // Сортируем ключи по значению поля j
+    const keys = Object.keys(obj);
+    keys.sort((keyA, keyB) => {
+        let a = obj[keyA].j + obj[keyA].is_craft ? 100 : 0;
+        let b = obj[keyB].j + obj[keyB].is_craft ? 100 : 0;
+        return a - b;
+    });
+    return keys;
+}
+
+let lastValueTargetId = {};
+let checkListCraft = [];
+
+
+function updateActionsCraftHelper() {
+    if (!craft_tree) return;
+    if (!script.user.alive) return;
+    let isChange = false;
+    let inventory = realGetinventory();
+    checkListCraft.forEach(key => {
+        const value = lastValueTargetId[key];
+        if (inventory[key] != value) { isChange = true; }
+        lastValueTargetId[key] = inventory[key];
+    });
+    if (isChange) reCalculateCraftTree();
+}
+
+function reCalculateCraftTree(isReset = false) {
+    if (!craft_tree) return;
+    if (isReset) {
+        craft_tree = create_craft_tree(craft_tree.id, Number(count_recipe_spin.value), Array.from(realGetinventory()), true);
+        spanCraftTargetCount.innerHTML = count_recipe_spin.value;
+        viewCraftHelper();
+        return;
+    }
+
+    let inventory = realGetinventory();
+    let inv_count = inventory[craft_tree.id];
+    if (!inv_count) inv_count = 0
+
+    let need_count = craft_tree.count - (inv_count - craft_tree.startCount);
+    if (!need_count || need_count < 0) need_count = 0;
+
+    spanCraftTargetCount.innerHTML = need_count;
+
+    craft_tree = create_craft_tree(craft_tree.id, need_count, Array.from(realGetinventory()), true);
+
+
+    viewCraftHelper();
+    if (need_count == 0) { craft_tree = {}; Settings.SmartCraft.e = false; }
+}
+
+function viewCraftHelper() {
+    craftItems = document.getElementById('craftItems');
+    craftItems.innerHTML = "";
+    craftItems.style.display = "grid";
+    craftItems.style.gridTemplateColumns = "repeat(7, 1fr)";
+    craftItems.style.gridTemplateRows = "auto auto";
+    craftItems.style.gap = "10px";
+    craftItems.style.fontSize = "20";
+
+    if (Object.keys(craft_tree).length === 0) {
+        checkListCraft = [];
+        return;
+    }
+    const img = Object.keys(game[Keys.game_img][0].info)[2];
+
+    let ingridients = {}
+    recursively_get_ingridients(ingridients, craft_tree, 0);
+    let keys_ingridients = sortKeysByJ(ingridients);
+    checkListCraft = Object.keys(ingridients);
+    checkListCraft.push(craft_tree.id);
+
+    for (let i = 0; i < keys_ingridients.length; i++) {
+        const key = keys_ingridients[i];
+        const ingridient = ingridients[key];
+
+        let div = document.createElement('div');
+        div.style.display = "flex";
+        div.style.alignItems = "center";
+
+        let invImg = document.createElement('img');
+        invImg.id = "craftImg-" + ingridient.id;
+        o_src = Object.keys(game[Keys.game_img][ingridient.id].info[img][0])[3];
+        if (game[Keys.game_img][ingridient.id].info[img][0].currentSrc) {
+            invImg.src = game[Keys.game_img][ingridient.id].info[img][0].currentSrc;
+        } else {
+            invImg.src = game[Keys.game_img][ingridient.id].info[img][0][o_src];
+        }
+        invImg.classList.add("inv", "hover-img-width");
+
+        let span = document.createElement('span');
+        span.style.backgroundColor = "black";
+        span.id = "craftSpan-" + ingridient.id;
+        span.innerHTML = ingridient.count;
+
+        div.appendChild(invImg);
+        div.appendChild(span);
+        if (realInventoryHas(ingridient.id)[0] && realInventoryHas(ingridient.id)[1] >= ingridient.count) {
+            invImg.style.borderBlockColor = "rgb(54, 255, 87)";
+            invImg.style.background = "rgb(54, 255, 87)";
+        } else if (ingridient.is_craft) {
+            invImg.style.borderBlockColor = "aqua";
+            invImg.style.background = "aqua";
+        } else {
+            invImg.style.borderBlockColor = "red";
+            invImg.style.background = "red";
+        }
+        craftItems.appendChild(div);
+
+    }
+}
+
+
+document.addEventListener("DOMContentLoaded", function (event) {
+    document.body.insertAdjacentHTML('beforeend', '<div id="divSmartCraft" class="hover-opacity" style="user-select: none; position: absolute; left: 0; color: white; bottom: 0; margin: 10px; "><div id="craftItems"></div> <div id="craftImg"></div><div id="craftStart"></div>');
+    craftImg = document.getElementById('craftImg');
+    craftImg.style.display = "flex";
+    craftImg.style.alignItems = "center";
+    craftImg.style.fontSize = "20";
+    spanCraftTargetCount = document.createElement('span');
+    spanCraftTargetCount.id = "craft-target-count";
+
+    craftHelperE = document.getElementById('craftStart');
+    craftStart = document.createElement('div');
+    craftStart.classList.add("quit");
+    craftStart.innerHTML = "Start/Stop";
+    craftStart.style.marginLeft = "0";
+    craftStart.style.textAlign = "center";
+    craftStart.style.float = "left";
+    craftStart.addEventListener('click', function (event) {
+        reCalculateCraftTree();
+        Settings.SmartCraft.e = !Settings.SmartCraft.e;
+        if (Settings.SmartCraft.e) Crafting.now = 0;
+    });
+
+    craftClear = document.createElement('div');
+    craftClear.classList.add("quit");
+    craftClear.innerHTML = "🗑️";
+    craftClear.style.marginLeft = "0";
+    craftClear.style.textAlign = "center";
+    craftClear.style.float = "left";
+    craftClear.style.width = "50px";
+    craftClear.style.marginRight = "10px";
+    craftClear.addEventListener('click', function (event) {
+        craft_tree = {}; Settings.SmartCraft.e = false;
+        viewCraftHelper();
+    });
+
+    craftHelperE.appendChild(craftClear);
+    craftHelperE.appendChild(craftStart);
+
+
+    craftItems = document.getElementById('craftItems');
+    document.getElementsByClassName('content')[0].addEventListener('click', (e) => {
+        if (e.target instanceof HTMLImageElement) {
+            spanCraftTargetCount.innerHTML = count_recipe_spin.value;
+            craftItems.innerHTML = "";
+            craftImg.innerHTML = "";
+            craftImg.style.opacity = "1"
+            craftImg.appendChild(e.target.cloneNode());
+            craftImg.appendChild(spanCraftTargetCount);
+
+
+            craft_tree = create_craft_tree(findItemIdByImg(e.target), Number(count_recipe_spin.value), Array.from(Getinventory()), true);
+
+            viewCraftHelper();
+        }
+    });
+
+    craft_tree = create_craft_tree(330, 1, [], true);
+    viewCraftHelper();
+});
+
+function add_recipe_helper() {
+    let recipe_content = document.getElementById('recipe_craft').querySelector('div.content');
+    count_recipe_spin = document.createElement('input');
+    count_recipe_spin.type = 'number';
+    count_recipe_spin.min = 1;
+    count_recipe_spin.max = 255;
+    count_recipe_spin.step = 1;
+    count_recipe_spin.value = 1;
+
+    count_recipe_spin.style.width = '70px';
+    count_recipe_spin.style.borderRadius = '10px';
+    count_recipe_spin.style.border = '3px solid #513810';
+    count_recipe_spin.style.textAlign = 'center';
+    count_recipe_spin.style.fontSize = '20px';
+    count_recipe_spin.style.fontFamily = "Baloo Paaji";
+    count_recipe_spin.style.marginLeft = '20px';
+    count_recipe_spin.style.backgroundColor = '#3A2A0D';
+    count_recipe_spin.style.color = '#fff';
+    count_recipe_spin.style.position = "absolute";
+    count_recipe_spin.style.top = "380px";
+    count_recipe_spin.style.left = "180px";
+
+    count_recipe_spin.addEventListener('input', function () {
+        if (count_recipe_spin.value > 255) count_recipe_spin.value = 255;
+        if (count_recipe_spin.value < 1) count_recipe_spin.value = 1;
+        reCalculateCraftTree(true);
+
+    });
+
+    button_start_craft = document.createElement('div');
+    button_start_craft.style.marginLeft = '20px';
+    button_start_craft.style.marginRight = '0px';
+    button_start_craft.style.textAlign = 'center';
+    button_start_craft.className = 'quit';
+    button_start_craft.textContent = "✅ Set";
+    button_start_craft.style.position = "absolute";
+    button_start_craft.style.top = "381px";
+    button_start_craft.style.left = "260px";
+    button_start_craft.style.width = "90px";
+
+
+    button_start_craft.addEventListener('click', function (event) {
+        reCalculateCraftTree(true);
+        Settings.SmartCraft.e = true;
+        Crafting.now = 0;
+    });
+
+    recipe_content.appendChild(count_recipe_spin);
+    recipe_content.appendChild(button_start_craft);
+}
+
+
+function create_craft_rules() {
+    game[Keys.block2].list.select(id_tings);
+    let rulesKey = Object.keys(game[Keys.block2].list)[2];
+    let recipe_craft = document.getElementById("recipe_craft");
+    craft_rules = {};
+
+    for (let i = 0; i < 6; i++) {
+        game[Keys.block2].list.select(i);
+        for (let j = 0; j < game[Keys.block2].list[rulesKey].length; j++) {
+            const element = game[Keys.block2].list[rulesKey][j];
+            if (element.id in craft_rules) continue;
+            craft_rules[element.id] = Array.from(element.r);
+        }
+    }
+    recipe_craft.style.display = "none";
+    log("Create new recipe_craft");
+
+}
+
 function createMiniMap() {
     jQuery("a[href='https://iogames.space']").hide();
 
@@ -1638,6 +2417,7 @@ function createMiniMap() {
     });
 
 
+
     //////////////////////////////////////////////////////////////
 
     sdpfin = true;
@@ -1647,9 +2427,9 @@ function createMiniMap() {
     //////////////////////////////////////////////////////////////
 
     if (Settings.miniMap.type5) {
-        jQuery("body").append('<img draggable="false" id="myNewImage" border="0" src="https://github.com/PolkovnikovPavel/golf_onlain/blob/master/images/mapv2transparent.png?raw=true">')
+        jQuery("body").append('<img draggable="false" id="myNewImage" border="0" src="https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/mapv2_5x5.png?raw=true">')
     } else {
-        jQuery("body").append('<img draggable="false" id="myNewImage" border="0" src="https://github.com/PolkovnikovPavel/golf_onlain/blob/master/images/mapv2transparent2.png?raw=true">')
+        jQuery("body").append('<img draggable="false" id="myNewImage" border="0" src="https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/mapv2_6x6.png?raw=true">')
     }
     jQuery("body").append('<p id="hrs"></p>')
     jQuery('body').append('<p id="ratata">Loading..</p>');
@@ -1723,30 +2503,36 @@ function createMiniMap() {
     img.style.opacity = Settings.miniMap.o;
 }
 
-function Getinventory() {
+function realGetinventory() {
 
     let inv;
     let inv2;
-    let counter = 0;
-    inv = user[Object.keys(user)[35]]
-    inv2 = inv[Object.keys(inv)[3]]
+    inv = user[Keys.inv];
+    inv2 = Array.from(inv[Object.keys(inv)[3]]);
 
     return inv2;
 }
 
-function inventoryHas(id) {
+function Getinventory() {
+    let inv2 = Array.from(realGetinventory());
+    if (Crafting.isCraft) {
+        if (inv2[Crafting.id] == undefined) inv2[Crafting.id] = 0;
+        inv2[Crafting.id] += 1;
+    }
+    return inv2;
+}
 
+function inventoryHas(id) {
     let inv;
     let inv2;
-    let counter = 0;
 
-    inv = user[Object.keys(user)[35]]
-    inv2 = inv[Object.keys(inv)[3]]
-    // log(1, Object.keys(user), user)
-    // log(2, inv)
-    // log(3, Object.keys(inv), inv)
-    // log(4, inv2)
+    inv = user[Keys.inv];
+    inv2 = Array.from(inv[Object.keys(inv)[3]]);
 
+    if (Crafting.isCraft) {
+        if (inv2[Crafting.id] == undefined) inv2[Crafting.id] = 0;
+        inv2[Crafting.id] += 1;
+    }
 
     if (inv2[id] !== 0 && inv2[id] !== undefined) {
         return [true, inv2[id]]
@@ -1755,6 +2541,21 @@ function inventoryHas(id) {
     }
 }
 
+
+function realInventoryHas(id) {
+    let inv;
+    let inv2;
+
+    inv = user[Keys.inv];
+    inv2 = inv[Object.keys(inv)[3]];
+
+
+    if (inv2[id] !== 0 && inv2[id] !== undefined) {
+        return [true, inv2[id]]
+    } else {
+        return [false, undefined]
+    }
+}
 
 function resetColors() {
     Settings.MainColor = 'rgb(16, 212, 68)',
@@ -1787,20 +2588,9 @@ function DropInChest() {
 
 
 function isAlive() {
-    let team = user[Object.keys(user)[11]];
-    // let counter = 0;
-
-    // for (let prop1 in user) {
-    //     counter++;
-
-    //     if (counter === 11) {
-    //         team = user[prop1];
-    //         break;
-    //     }
-    // }
-
-    return team;
+    return user[Keys.isAlive];
 }
+
 function getUserPosition() {
 
     let camx;
@@ -1831,6 +2621,8 @@ function turnOff() {
     OpenedNode.script_menu_button1.style.display = 'none'
     OpenedNode.script_menu_button2.style.display = 'none'
 
+    document.getElementById("divSmartCraft").style.display = 'none';
+
 }
 
 function turnOn() {
@@ -1838,6 +2630,8 @@ function turnOn() {
 
     OpenedNode.script_menu_button1.style.display = ''
     OpenedNode.script_menu_button2.style.display = 'none'
+
+    document.getElementById("divSmartCraft").style.display = 'inline-block';
 
 }
 
@@ -1866,31 +2660,44 @@ function turnOn() {
 
 
 function autoresp() {
-    let _0x36da2b = Object.keys(client)[137 + 1];
-    let _0x172688 = Object.keys(client)[136 + 1];
-    let _0x34844e = Object.keys(_this)[85];
-    let _0x130c89 = client[_0x36da2b];
-    client[_0x36da2b] = function () {
-        if (Settings.autoRespawn) {
-            cooldowns.PathFinder = Date['now']();
-            client[_0x172688]();
-            setTimeout(spawn, 1500);
-            return _0x130c89.apply(this, arguments);
-        }
-        return Settings.PathFinder.e && Settings.PathFinder.autoRestart && (cooldowns.PathFinder = Date['now'](), client[_0x172688](), _this[_0x34844e]()), _0x130c89.apply(this, arguments);
-    };
+    // let dying = Object.keys(client)[75];
+    // let dyingFunc = client[dying];
+    // let is_resp = Date.now();
+    // client[dying] = function (...arguments) {
+    //     if (Settings.autoRespawn) {
+    //         const date_now = Date.now();
+    //         cooldowns.PathFinder = date_now;
+    //         if (date_now - is_resp > 1000) { is_resp = date_now; backToLobby(); }
+    //         setTimeout(spawn, 1500);
+    //         return dyingFunc.apply(this, arguments);
+    //     }
+    //     else return dyingFunc.apply(this, arguments);
+    //     return Settings.PathFinder.e && Settings.PathFinder.autoRestart && (cooldowns.PathFinder = date_now, backToLobby(), spawn()), dyingFunc.apply(this, arguments);
+    // };
+
+    // For tests
+    // for (let i = 0; i < Object.keys(client).length; i++) {
+    //     if (i == 152 || i == 153 || i == 143 || i == 141 || i == 100) continue;
+    //     const func = Object.keys(client)[i];
+    //     if (typeof client[func] == "function") {
+    //         let origin = client[func];
+    //         log("add func", i, func, origin);
+    //         client[func] = function (...rest) {
+    //             log('F', i, rest, func);
+    //             return origin.apply(this, rest);
+    //         };
+    //     }
+    // }
 }
 
 
 function backToLobby() {
-    let _0x172688 = Object.keys(client)[136 + 1];
-    client[_0x172688]()
+    client[Keys.back_to_lobby]();
 }
 
 
 function spawn() {
-    let _0x34844e = Object.keys(_this)[85 + 1];
-    _this[_0x34844e]()
+    _this[Object.keys(_this)[120]]();
 }
 
 
@@ -1925,67 +2732,29 @@ function SwordInChest() {
 
 function autoBook() {
 
-    let craft = Object.keys(client)[96];
+    let craft = Object.keys(client)[115];
 
     client[craft] = (id) => {
 
         Settings.AutoCraft.lastcraft = id
 
-        send([packets.equip, 28])
+        send([packets.equip, 46])
         send([packets.craft, id]);
         return 1;
     };
 }
 
+function recycle() {
+
+    let rec = Object.keys(client)[116];
+    client[rec] = (id) => {
+        Settings.AutoRecycle.lastrecycle = id
+        send([packets.recycle, id]);
+    };
+}
 
 function isDeathBox(id) {
     return true;
-    // switch (id) {
-    //     case 69:
-    //         return false;
-    //     case 73:
-    //         return false;
-    //     case 68:
-    //         return false;
-    //     case 66:
-    //         return false;
-    //     case 65:
-    //         return false;
-    //     case 62:
-    //         return false;
-    //     case 63:
-    //         return false;
-    //     case 78:
-    //         return false;
-    //     case 77:
-    //         return false;
-    //     case 64:
-    //         return false;
-    //     case 72:
-    //         return false;
-    //     case 88:
-    //         return false;
-    //     case 76:
-    //         return false;
-    //     case 75:
-    //         return false;
-    //     case 74:
-    //         return false;
-    //     case 60:
-    //         return false;
-    //     case 80:
-    //         return false;
-    //     case 61:
-    //         return false;
-    //     case 67:
-    //         return false;
-    //     case 71:
-    //         return false;
-    //     case 70:
-    //         return false;
-    //     default:
-    //         return true;
-    // }
 }
 
 // SOSITE
@@ -2000,16 +2769,44 @@ function getdist(a, b) {
 function getImgForChest(chest) {
     let copy_game = game
     if (!copy_game) return;
-    let o = copy_game[Object.keys(copy_game)[44 + 1]][chest.action / 2 - 1]["info"]
+    let o = copy_game[Keys.game_img][chest.action / 2 - 1]["info"]
     return o[Object.keys(o)[2]][0];
 }
 
+function buyResMax(id) {
+    if (!inventoryHas(cropsById[id])[0]) return;
+    let coast = 100000;
+    switch (id) {
+        case 0:
+        case 1:
+        case 2:
+            coast = 1;
+            break;
+        case 3:
+            coast = 4;
+            break;
+        case 4:
+            coast = 8;
+            break;
+        case 5:
+            coast = 16;
+            break;
+    }
+    let count = Number(Math.floor(inventoryHas(cropsById[id])[1] / coast) * coast);
+    if (count > 0) send([packets.buy, count, id]);
+}
 
 let cooldowns = {
     Autofarm: Date['now'](),
-    PathFinder: Date['now']()
+    PathFinder: Date['now'](),
+    AutofarmDrop: Date['now']()
 };
 
+const cropsName = { 201: "berries", 227: "wheat", 291: "pumpkin", 294: "garlic", 296: "thorn", 315: "carrot", 317: "tomato", 319: "watermelon", 321: "aloe" }
+const cropsById = { 0: 201, 1: 291, 2: 236, 3: 315, 4: 317, 5: 296 }
+const crops = Object.keys(cropsName);
+const berries = 201;
+let dropText = { crops: [], isDrop: false, text: [] };
 
 function autofarm(time = 1) {
     if (time) requestAnimationFrame(autofarm);
@@ -2019,9 +2816,45 @@ function autofarm(time = 1) {
     function _0x2c4b97(_0x2965fb, _0x5723f3, _0x30ace0) {
         return _0x2965fb && _0x5723f3 ? _0x30ace0 ? Math['atan2'](_0x5723f3['r']['y'] - _0x2965fb['r']['y'], _0x5723f3['r']['x'] - _0x2965fb['r']['x']) : Math['atan2'](_0x5723f3['y'] - _0x2965fb['y'], _0x5723f3['x'] - _0x2965fb['x']) : null;
     }
-    let _0x456623 = Object.keys(client)[0x7a + 1], player = myplayer();
+    player = myplayer();
     if (Settings.Autofarm.e) {
         if (Date['now']() - cooldowns.Autofarm > 0x32) {
+            let players = unit()[0];
+            let isTextDrop = false;
+            for (let i = 0; i < players.length; i++) {
+                const p = players[i];
+                if (p.text.includes(Settings.Autofarm.comand)) {
+                    isTextDrop = true
+                    if (dropText.isDrop) break;
+                    dropText.isDrop = true;
+                    dropText.text = [];
+                    dropText.crops = [];
+                    crops.forEach(crop => {
+                        if (!Settings.Autofarm.isDropBerries && crop == berries && inventoryHas(crop)[0]) {
+                            dropText.text.push(dropText.text.length + 1 + ") save " + inventoryHas(crop)[1] + " ber");
+                        } else {
+                            if (inventoryHas(crop)[0]) {
+                                dropText.text.push(dropText.text.length + 1 + ") " + inventoryHas(crop)[1] + " " + cropsName[crop]);
+                                dropText.crops.push(Number(crop));
+                            }
+                        }
+                    });
+                }
+            }
+            if (!isTextDrop) {
+                dropText.isDrop = false;
+            }
+
+            if (Date['now']() - cooldowns.AutofarmDrop > 500) {
+                cooldowns.AutofarmDrop = Date.now();
+                if (dropText.crops.length > 0) {
+                    send([packets.dropall, dropText.crops.shift()]);
+                }
+                if (dropText.text.length > 0) {
+                    send([packets.speak, dropText.text.shift()]);
+                }
+            }
+
             let _0x2a1577 = {
                 'obj': null,
                 'dist': -0x1,
@@ -2033,7 +2866,7 @@ function autofarm(time = 1) {
                 'width': Settings.Autofarm['xx'] - Settings.Autofarm['x'],
                 'height': Settings.Autofarm['yy'] - Settings.Autofarm['y']
             };
-            plants = [...unit()[0x3], ...unit()[0x1f], ...unit()[0x25], ...unit()[0x27], ...unit()[0x28], ...unit()[0x2b], ...unit()[0x2c], ...unit()[0x36], ...unit()[0x37]]
+            plants = [...unit()[3], ...unit()[40], ...unit()[46], ...unit()[48], ...unit()[49], ...unit()[52], ...unit()[53], ...unit()[63], ...unit()[64]]
             for (var i = 0x0, _0x59cf69 = plants['length'], plant = null, _0x340be5 = null; i < _0x59cf69; ++i) {
                 plant = plants[i];
                 if (!plant['info'] || plant['info'] === 0xa) continue;
@@ -2056,11 +2889,11 @@ function autofarm(time = 1) {
                     case 0x1:
                     case 0x2:
                     case 0x3:
-                        if (inventoryHas(0x36)[0x0]) {
-                            player['right'] !== 0x36 && send([packets['equip'], 0x36]);;
+                        if (inventoryHas(100)[0x0]) {
+                            player['right'] !== 100 && send([packets['equip'], 100]);;
                         } else {
-                            if (inventoryHas(0x35)[0x0]) {
-                                player['right'] !== 0x35 && send([packets['equip'], 0x35]);;
+                            if (inventoryHas(99)[0x0]) {
+                                player['right'] !== 99 && send([packets['equip'], 99]);;
                             }
                         };
                         _0x2a1577['type'] = 0x2;
@@ -2070,16 +2903,16 @@ function autofarm(time = 1) {
                     case 0x12:
                     case 0x13:
                         if (Settings.Autofarm['water']) {
-                            if (inventoryHas(0x31)[0x0]) {
-                                if (player['right'] !== 0x31) send([packets['equip'], 0x31]);
+                            if (inventoryHas(85)[0]) {
+                                if (player['right'] !== 85) send([packets['equip'], 85]);
                                 _0x2a1577['type'] = 0x1;
                             };
                         } else {
-                            if (inventoryHas(0x36)[0x0]) {
-                                player['right'] !== 0x36 && send([packets['equip'], 0x36]);;
+                            if (inventoryHas(100)[0]) {
+                                player['right'] !== 100 && send([packets['equip'], 100]);;
                             } else {
-                                if (inventoryHas(0x35)[0x0]) {
-                                    player['right'] !== 0x35 && send([packets['equip'], 0x35]);;
+                                if (inventoryHas(99)[0]) {
+                                    player['right'] !== 99 && send([packets['equip'], 99]);;
                                 }
                             };
                             _0x2a1577['type'] = 0x2;
@@ -2103,7 +2936,7 @@ function autofarm(time = 1) {
                     if (_0x4eca81['y'] > 0x32) _0x1d01db += 0x8;
                     if (_0x4eca81['y'] < 0x32) _0x1d01db += 0x4;
                 };
-                client[_0x456623](_0x1d01db);
+                client[Keys.movement](_0x1d01db);
                 if (_0x57c2ec['x'] < (_0x2a1577['type'] === 0x1 ? 0x78 : 0x12c) && _0x57c2ec['y'] < (_0x2a1577['type'] === 0x1 ? 0x78 : 0x12c)) {
                     Settings.Autofarm['angle'] = _0x2c4b97(player, _0x2a1577['obj'], !![]);
                     let _0x2ad285 = 0x2 * Math['PI'],
@@ -2128,7 +2961,7 @@ function autofarm(time = 1) {
                     if (_0x897afa['y'] > 0x0) _0x265b45 += 0x8;
                     if (_0x897afa['y'] < 0x0) _0x265b45 += 0x4;
                 };
-                client[_0x456623](_0x265b45);
+                client[Keys.movement](_0x265b45);
             }
             cooldowns.Autofarm = Date['now']();
         }
@@ -2183,7 +3016,6 @@ function PathFinder() {
         return true
     }
 
-    let movment = Object.keys(client)[0x7a + 1];
     let dist = Math.sqrt((player['x'] - (Settings.PathFinder.x * 100 + 50)) ** 0x2 + (player['y'] - (Settings.PathFinder.y * 100 + 50)) ** 2);
     if (Settings.PathFinder.autoRestart && dist > Settings.PathFinder.dist * 100) {
         cooldowns.PathFinder = Date['now']();
@@ -2196,8 +3028,8 @@ function PathFinder() {
             backToLobby();
         }
     };
-    if (inventoryHas(223)[0]) {
-        if (player[Object.keys(player)[61]] !== 223) send([packets['equip'], 223]);
+    if (inventoryHas(333)[0]) {  // Лодка
+        if (player[Object.keys(player)[63]] !== 333) send([packets['equip'], 333]);
     };
 
     let normDelta = {
@@ -2217,51 +3049,86 @@ function PathFinder() {
         if (normDelta['y'] > 0) res += 0x8;
         if (normDelta['y'] < 0) res += 0x4;
     };
-    client[movment](res);
+    client[Keys.movement](res);
 }
 
 function HoldWeapon(_, $) {
     switch (_) {
-        case 34:
-        case 18:
-        case 33:
-        case 15:
-        case 14:
-        case 13:
         case 12:
+        case 13:
+        case 14:
+        case 15:
         case 16:
         case 17:
-            return 2;
-        case 57:
+        case 18:
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27:
+        case 60:
+        case 61:
+            return 2;   // копья
+        case 0:
         case 5:
         case 6:
-        case 30:
-        case 62:
         case 9:
-        case 0:
-        case 63:
-        case 19:
-            return 1;
-        case 64:
-        case 65:
-        case 66:
-        case 67:
-        case 68:
-        case 70:
-        case 69:
-            return 3;
-        case 94:
-        case 95:
-        case 96:
-        case 97:
-        case 98:
-        case 90:
-        case 99:
-            return 6;
-        case 45:
-            if ($) return 4;
+        case 28:
+        case 48:
+        case 103:
+        case 108:
+        case 109:
+        case 110:
+        case 111:
+        case 112:
+        case 113:
+        case 114:
+        case 115:
+        case 116:
+        case 117:
+        case 118:
+            return 1;   // мечи
+        case 119:
+        case 120:
+        case 121:
+        case 122:
+        case 123:
+        case 124:
+        case 125:
+        case 126:
+        case 127:
+        case 128:
+        case 129:
+        case 130:
+        case 131:
+        case 132:
+        case 133:
+        case 134:
+            return 3;   // луки
+        case 167:
+        case 168:
+        case 169:
+        case 170:
+        case 171:
+        case 172:
+        case 173:
+        case 174:
+        case 175:
+        case 176:
+        case 177:
+        case 178:
+        case 179:
+        case 180:
+        case 181:
+            return 6;   // топоры
+        case 72:
+            if ($) return 4;   // супер молот
         case -1:
-            if ($) return 5;
+            if ($) return 5;   // руки
     }
     return 0;
 }
@@ -2274,7 +3141,7 @@ function aimbot() {
     if (Settings.TurnOffScript.e) return;
 
     let myPlayer = myplayer();
-    const maxDist = 450000;
+    const maxDist = 550000;
     const outDist = 120000;
     const normDist = 50000;
 
@@ -2297,7 +3164,6 @@ function aimbot() {
         let nearest = null;
         let distSqrd = maxDist;
         const myPid = myPlayer[Object.keys(myPlayer)[1]]
-        log(PlayerList);
 
         for (var i = 0, obj = null, d = null; i < PlayerList.length; ++i) {
             obj = PlayerList[i];
@@ -2371,10 +3237,13 @@ function aimbot() {
                 myRange = 620;
                 break;
             case 4:
-                myRange = myPlayer[fly] ? 140 : 125;
+                myRange = myPlayer[fly] ? 196.8 : 157.6;
                 break;
             case 5:
-                myRange = myPlayer.clothe == 85 || myPlayer.clothe == 83 ? (myPlayer[fly] ? 120.8 : 97.6) : null;
+                myRange = myPlayer.clothe == 158 || myPlayer.clothe == 156 ? (myPlayer[fly] ? 120.8 : 97.6) : null;
+                break;
+            case 6:
+                myRange = myPlayer[fly] ? 140 : 125;
                 break;
             default:
                 myRange = null;
@@ -2717,7 +3586,6 @@ function calculateHp(units) {
                         dmg = Math.floor(dmg * 0.3)
                     }
                     if (protectionList[ent[Object.keys(ent)[63]]]) {
-                        log('protect p', protectionList[ent[Object.keys(ent)[63]]][0]);
                         dmg -= protectionList[ent[Object.keys(ent)[63]]][0]
                     }
                     if (dmg < 0) dmg = 0;
@@ -2818,67 +3686,80 @@ function calculateHp(units) {
 
 }
 
+function valueToColor(value) {
+    const red = Math.floor(255 * (1 - value));
+    const green = Math.floor(255 * value);
+    const blue = 0;
+
+    if (value > 10000) {
+        return 'rgb(0, 255, 0)';
+    }
+
+    // Форматируем RGB-строку
+    return `rgb(${red}, ${green}, ${blue})`;
+}
+
+PlayersTimer = {};
+
+function calculateTimers(units) {
+    const players = units[0];
+    const timeNow = Date.now();
+
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 7;
+
+    for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+        let pid = player[Object.keys(player)[1]];
+
+        if (pid === script.user.id) continue;
+        isHEAL = (player.action >> 7) & 1;
+        if (isHEAL) {
+            if (pid in PlayersTimer && timeNow - PlayersTimer[pid].t > 1000) {
+                PlayersTimer[pid].t = timeNow;
+            } else {
+                PlayersTimer[pid] = { t: timeNow };
+            }
+        }
+        if (!(pid in PlayersTimer)) PlayersTimer[pid] = { t: timeNow };
+
+        t = ((timeNow - PlayersTimer[pid].t) % 10000) / 10000;
+        ctx.fillStyle = valueToColor(t);
+        ctx.strokeText((t * 10).toFixed(1), script.user.cam.x + player.x - 25, script.user.cam.y + player.y + 5);
+        ctx.fillText((t * 10).toFixed(1), script.user.cam.x + player.x - 25, script.user.cam.y + player.y + 5);
+    }
+}
+
 
 function blizzard() {
-
-    let blizzard1;
-    let sandstorm
-    let tempset;
-    let counter = 0;
-
-    // for (let prop1 in user) {
-    //     counter++;
-
-    //     if (counter === 37 + 1) {
-    //         autofeed = user[prop1]
-    //     }
-    //     if (counter === 47 + 1) {
-    //         sandstorm = user[prop1]
-    //     }
-
-    //     if (counter === 48 + 1) {
-
-    //         let innerCounter = 0;
-
-    //         log('user', Object.keys(user), user)
-
-    //         for (let prop2 in user[prop1]) {
-    //             innerCounter++;
-    //             if (innerCounter === 2) {
-    //                 blizzard1 = user[prop1];
-    //                 unsafeWindow.blizz1 = blizzard1
-    //                 tempset = [prop2]
-    //             }
-    //         }
-    //         break;
-    //     }
-    // }
-
     requestAnimationFrame(blizzard)
-    if (Settings.TurnOffScript.e) return;
+    if (Settings.TurnOffScript.e || !Keys.is_set) return;
+
     var use = -8;
 
     const canvas = document.getElementById("game_canvas");
     const ctx = canvas.getContext("2d");
+    autofeed = user[Keys.autofeed];
 
-    // if (script.user.alive && blizzard1[tempset]) { //27
-    //     ctx.save();
-    //     ctx.drawImage(
-    //         BlizzardImage,
-    //         canvas.width * 0.9,
-    //         use + 100
-    //     );
-    //     use += 70;
-    // }
-    // if (script.user.alive && sandstorm[tempset]) { //26
-    //     ctx.save();
-    //     ctx.drawImage(
-    //         SandstormImage,
-    //         canvas.width * 0.9,
-    //         use + 100
-    //     );
-    //     use += 70;
-    // }
+    if (script.user.alive && user[Keys.blizzard][Object.keys(user[Keys.blizzard])[1]]) {
+        ctx.save();
+        ctx.drawImage(
+            BlizzardImage,
+            autofeed.translate.x - 100,
+            autofeed.translate.y + use - 80
+        );
+        use += 70;
+    }
+    if (script.user.alive && user[Keys.sandstorm][Object.keys(user[Keys.blizzard])[1]]) {
+        ctx.save();
+        ctx.drawImage(
+            SandstormImage,
+            autofeed.translate.x - 100,
+            autofeed.translate.y + use - 80
+        );
+        use += 70;
+    }
+
     if (Settings.fps.e) {
         timeNow = Date.now();
         if (timeNow - Settings.fps.last > 1000) {
@@ -2904,8 +3785,9 @@ function blizzard() {
 let ally = [];
 const heartEmoji = "\u{1F9E1}";
 const extractor_ids = [24, 25, 26, 27, 28];
-const foodItems = [138, 110, 117, 192, 189, 205, 207, 209, 243, 244,]
-let ice = [142, 200];
+
+const foodItems = [294, 231, 201, 208, 291, 229, 238, 315, 317, 356, 236]
+let ice = [235, 200];
 let lastFood = [0, 0];
 let enemyForAMB = { pid: null, d: 0 };
 let lootboxsinfo = {};
@@ -3048,8 +3930,9 @@ const damageMap = new Map([
 
 
 
-const whuteListXray = [108, 109, 110, 111, 112, 114, 119, 121, 202, 307, 413, 415, 416, 676, 693]
-const fogs = [244, 1041]
+const whuteListXray = [199, 200, 202, 203, 205, 212, 304, 418, 524, 526, 527, 895, 898, 912, 1755]
+const fogs = [354, 1349]
+const roof_id = 1102;
 XraySprites = {}
 NoXraySprites = {}
 let mypid = -1;
@@ -3057,11 +3940,11 @@ let mypid = -1;
 
 
 function loadRoof() {
-    for (let k = 0; k < unsafeWindow.sprite[853].length; k++) {
-        if (!unsafeWindow.sprite[853][k]) continue;
-        if (!unsafeWindow.sprite[853][k].length) continue;
-        for (let l = 0; l < unsafeWindow.sprite[853][k].length; l++) {
-            const originalImg = unsafeWindow.sprite[853][k][l];
+    for (let k = 0; k < unsafeWindow.sprite[roof_id].length; k++) {
+        if (!unsafeWindow.sprite[roof_id][k]) continue;
+        if (!unsafeWindow.sprite[roof_id][k].length) continue;
+        for (let l = 0; l < unsafeWindow.sprite[roof_id][k].length; l++) {
+            const originalImg = unsafeWindow.sprite[roof_id][k][l];
 
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = originalImg.width;
@@ -3085,7 +3968,7 @@ function loadRoof() {
             const newImg = new Image();
             newImg.src = tempCanvas.toDataURL();
 
-            unsafeWindow.sprite[853][k][l] = newImg;
+            unsafeWindow.sprite[roof_id][k][l] = newImg;
 
         }
     }
@@ -3093,6 +3976,8 @@ function loadRoof() {
 }
 
 function loadFog() {
+    if (isError) { return; }
+
     const FogCanvas = document.createElement('canvas');
     FogCanvas.width = 10;
     FogCanvas.height = 10;
@@ -3114,7 +3999,7 @@ function loadFog() {
 }
 
 function loadXray() {
-
+    if (isError) { return; }
 
     log('sprite', unsafeWindow.sprite);
 
@@ -3250,6 +4135,15 @@ function draw(i, ctx) {
     }
 }
 
+function draw2(i, ctx) {
+    if (!Keys.is_set) return;
+    if (!game[Keys.game_img].length) return;
+    if (!game[Keys.game_img][i]["info"]) return;
+    let o = game[Keys.game_img][i]["info"]
+    o[Object.keys(o)[2]][0]
+    drow(i, o[Object.keys(o)[2]][0], ctx);
+}
+
 
 // Xray!!!
 function XrayOn() {
@@ -3285,79 +4179,79 @@ function loadSpikes() {
     RSpikeAlly = new Image;
     RSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/d-r-s-a.png?raw=true"
     AmethystSpikeAlly = new Image;
-    AmethystSpikeAlly.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-amethyst-spike-ally.png"
+    AmethystSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-amethyst-spike-ally.png"
     DiamondSpikeAlly = new Image;
-    DiamondSpikeAlly.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-diamond-spike-ally.png"
+    DiamondSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-diamond-spike-ally.png"
     GoldSpikeAlly = new Image;
-    GoldSpikeAlly.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-gold-spike-ally.png"
+    GoldSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-gold-spike-ally.png"
     StoneSpikeAlly = new Image;
-    StoneSpikeAlly.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-stone-spike-ally.png"
+    StoneSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-stone-spike-ally.png"
     WoodSpikeAlly = new Image;
-    WoodSpikeAlly.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-wood-spike-ally.png"
+    WoodSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-wood-spike-ally.png"
 
     dayWoodDoorAlly = new Image;
-    dayWoodDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-door-ally.png?raw=true"
+    dayWoodDoorAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-wood-door-ally.png?raw=true"
     dayStoneDoorAlly = new Image;
-    dayStoneDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-door-ally.png?raw=true"
+    dayStoneDoorAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-stone-door-ally.png?raw=true"
     dayGoldDoorAlly = new Image;
-    dayGoldDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-door-ally.png?raw=true"
+    dayGoldDoorAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-gold-door-ally.png?raw=true"
     dayDiamondDoorAlly = new Image;
-    dayDiamondDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-door-ally.png?raw=true"
+    dayDiamondDoorAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-diamond-door-ally.png?raw=true"
     dayAmethystDoorAlly = new Image;
-    dayAmethystDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-door-ally.png?raw=true"
+    dayAmethystDoorAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-amethyst-door-ally.png?raw=true"
     dayReiditeDoorAlly = new Image;
-    dayReiditeDoorAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-door-ally.png?raw=true"
+    dayReiditeDoorAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-reidite-door-ally.png?raw=true"
     dayWoodDoorSpikeAlly = new Image;
-    dayWoodDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-spike-door-ally.png?raw=true"
+    dayWoodDoorSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-wood-spike-door-ally.png?raw=true"
     dayStoneDoorSpikeAlly = new Image;
-    dayStoneDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-spike-door-ally.png?raw=true"
+    dayStoneDoorSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-stone-spike-door-ally.png?raw=true"
     dayGoldDoorSpikeAlly = new Image;
-    dayGoldDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-spike-door-ally.png?raw=true"
+    dayGoldDoorSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-gold-spike-door-ally.png?raw=true"
     dayDiamondDoorSpikeAlly = new Image;
-    dayDiamondDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-spike-door-ally.png?raw=true"
+    dayDiamondDoorSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-diamond-spike-door-ally.png?raw=true"
     dayAmethystDoorSpikeAlly = new Image;
-    dayAmethystDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-spike-door-ally.png?raw=true"
+    dayAmethystDoorSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-amethyst-spike-door-ally.png?raw=true"
     dayReiditeDoorSpikeAlly = new Image;
-    dayReiditeDoorSpikeAlly.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-spike-door-ally.png?raw=true"
+    dayReiditeDoorSpikeAlly.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-reidite-spike-door-ally.png?raw=true"
 
 
     ReiditeSpikeEnemy = new Image;
-    ReiditeSpikeEnemy.src = 'https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/d-r-s-e.png?raw=true'
+    ReiditeSpikeEnemy.src = 'https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/d-r-s-e.png?raw=true'
     AmethystSpikeEnemy = new Image;
-    AmethystSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-amethyst-spike-enemy.png"
+    AmethystSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-amethyst-spike-enemy.png"
     DiamondSpikeEnemy = new Image;
-    DiamondSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-diamond-spike-enemy.png"
+    DiamondSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-diamond-spike-enemy.png"
     GoldSpikeEnemy = new Image;
-    GoldSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-gold-spike-enemy.png"
+    GoldSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-gold-spike-enemy.png"
     StoneSpikeEnemy = new Image;
-    StoneSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-stone-spike-enemy.png"
+    StoneSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-stone-spike-enemy.png"
     WoodSpikeEnemy = new Image;
-    WoodSpikeEnemy.src = "https://raw.githubusercontent.com/sfagasdzdgfhs/spikes/main/day-wood-spike-enemy.png"
+    WoodSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-wood-spike-enemy.png"
 
     dayWoodDoorEnemy = new Image;
-    dayWoodDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-door-enemy.png?raw=true"
+    dayWoodDoorEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-wood-door-enemy.png?raw=true"
     dayStoneDoorEnemy = new Image;
-    dayStoneDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-door-enemy.png?raw=true"
+    dayStoneDoorEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-stone-door-enemy.png?raw=true"
     dayGoldDoorEnemy = new Image;
-    dayGoldDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-door-enemy.png?raw=true"
+    dayGoldDoorEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-gold-door-enemy.png?raw=true"
     dayDiamondDoorEnemy = new Image;
-    dayDiamondDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-door-enemy.png?raw=true"
+    dayDiamondDoorEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-diamond-door-enemy.png?raw=true"
     dayAmethystDoorEnemy = new Image;
-    dayAmethystDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-door-enemy.png?raw=true"
+    dayAmethystDoorEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-amethyst-door-enemy.png?raw=true"
     dayReiditeDoorEnemy = new Image;
-    dayReiditeDoorEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-door-enemy.png?raw=true"
+    dayReiditeDoorEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-reidite-door-enemy.png?raw=true"
     dayWoodDoorSpikeEnemy = new Image;
-    dayWoodDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-wood-spike-door-enemy.png?raw=true"
+    dayWoodDoorSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-wood-spike-door-enemy.png?raw=true"
     dayStoneDoorSpikeEnemy = new Image;
-    dayStoneDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-stone-spike-door-enemy.png?raw=true"
+    dayStoneDoorSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-stone-spike-door-enemy.png?raw=true"
     dayGoldDoorSpikeEnemy = new Image;
-    dayGoldDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-gold-spike-door-enemy.png?raw=true"
+    dayGoldDoorSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-gold-spike-door-enemy.png?raw=true"
     dayDiamondDoorSpikeEnemy = new Image;
-    dayDiamondDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-diamond-spike-door-enemy.png?raw=true"
+    dayDiamondDoorSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-diamond-spike-door-enemy.png?raw=true"
     dayAmethystDoorSpikeEnemy = new Image;
-    dayAmethystDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-amethyst-spike-door-enemy.png?raw=true"
+    dayAmethystDoorSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-amethyst-spike-door-enemy.png?raw=true"
     dayReiditeDoorSpikeEnemy = new Image;
-    dayReiditeDoorSpikeEnemy.src = "https://github.com/PolkovnikovPavel/starve_io_Multihack/blob/master/img/day-reidite-spike-door-enemy.png?raw=true"
+    dayReiditeDoorSpikeEnemy.src = "https://raw.githubusercontent.com/PolkovnikovPavel/starve_io_Multihack/refs/heads/master/img/day-reidite-spike-door-enemy.png?raw=true"
 
 
 
@@ -3365,7 +4259,7 @@ function loadSpikes() {
 
     for (let e in unsafeWindow) {
         if (!Array.isArray(unsafeWindow[e]) && chars.includes(e[0])) continue;
-        if (unsafeWindow[e].length > 800 && unsafeWindow[e].length < 1500) {
+        if (unsafeWindow[e].length > 1300 && unsafeWindow[e].length < 2000) {
             unsafeWindow.sprite = unsafeWindow[e];
         }
     }
@@ -3429,10 +4323,11 @@ function loadSpikes() {
 }
 
 
-const srsImg = 'abbccc'
+const srsImg = 'abbccc';
+let playersOnTop = {};
+
 function colors() {
     loadSpikes();
-    // return
 
     if (true) {
         let ITEMS = {
@@ -3442,39 +4337,49 @@ function colors() {
             GOLD_SPIKE: 13,
             DIAMOND_SPIKE: 14,
             AMETHYST_SPIKE: 20,
-            REIDITE_SPIKE: 52,
+            REIDITE_SPIKE: 61,
             WOOD_DOOR: 10,
             STONE_DOOR: 15,
             GOLD_DOOR: 16,
             DIAMOND_DOOR: 17,
             AMETHYST_DOOR: 21,
-            REIDITE_DOOR: 51,
-            WOOD_DOOR_SPIKE: 45,
-            STONE_DOOR_SPIKE: 46,
-            GOLD_DOOR_SPIKE: 47,
-            DIAMOND_DOOR_SPIKE: 48,
-            AMETHYST_DOOR_SPIKE: 49,
-            REIDITE_DOOR_SPIKE: 53,
+            REIDITE_DOOR: 60,
+            WOOD_DOOR_SPIKE: 54,
+            STONE_DOOR_SPIKE: 55,
+            GOLD_DOOR_SPIKE: 56,
+            DIAMOND_DOOR_SPIKE: 57,
+            AMETHYST_DOOR_SPIKE: 58,
+            REIDITE_DOOR_SPIKE: 62,
         }
 
         let push = Array.prototype.push
         Array.prototype.push = function (p) {
-            if (p) {
-                let a = Object.keys(p);
-                5 == a.length && a.includes("draw") && a.includes("in_button") && 32 !== p.id && 130 !== p.id && 127 !== p.id && 4 !== p.id && 25 !== p.id && 34 !== p.id && 87 !== p.id && (unsafeWindow.inventory = this);
-            }
             if (p && null != p.type && null != p.id && p.x && p.y) {
                 // log(p)
                 try {
-                    unsafeWindow.wow = Object.keys(p)[13];
+                    unsafeWindow.wow = Object.keys(p)[14];
                     const pid = p[Object.keys(p)[1]];
                     p.ally = mypid === pid || isAlly(pid);
+                    // log_debug(p);
+                    if (p.type == 0) {
+                        playersOnTop[pid] = [p[Object.keys(p)[36]], true, p, p[Object.keys(p)[37]]];
+                        p[Object.keys(p)[36]] = function () {
+                            playersOnTop[pid][1] = true;
+                            if (p.x < 50) return;
+                            if (Settings.playerOnTop) return;
+                            playersOnTop[pid][0].apply(this, arguments);
+                        }
+                        p[Object.keys(p)[37]] = function () {
+                            if (p.x < 50) return;
+                            if (Settings.playerOnTop) return;
+                            playersOnTop[pid][3].apply(this, arguments);
+                        }
+                    }
 
                     switch ((0 === p.type && pid(p) === unsafeWindow.playerID && (unsafeWindow.player = p), p.type)) {
                         case ITEMS.SPIKE: {
                             let l = p[wow]; // draw
                             p[wow] = function (a) {
-                                log([p, this, arguments, a]);
                                 return Settings.ColoredSpikes ? (p.ally ? l.apply(this, [10000]) : l.apply(this, [10001])) : l.apply(this, arguments);
                             };
                             break;
@@ -3509,7 +4414,6 @@ function colors() {
                         }
                         case ITEMS.REIDITE_SPIKE: {
                             let y = p[wow]; // draw
-                            log('r', this, arguments)
                             p[wow] = function (a) {
                                 return Settings.ColoredSpikes ? (p.ally ? y.apply(this, [10010]) : y.apply(this, [10011])) : y.apply(this, arguments);
                             };
@@ -3652,6 +4556,22 @@ function roundRect(ctx, x1, y1, x2, y2, radius) {
 }
 
 
+let weaponPlayers = {};
+function drawPartialCircle(ctx, radius, centerX, centerY, fillRatio, lineWidth = 5) {
+    if (fillRatio <= 0 || fillRatio > 1) return;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = lineWidth;
+
+    const endAngle = 2 * Math.PI * fillRatio;
+    const startAngle = 0;
+
+    // Рисуем дугу
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    ctx.stroke();
+}
+
 function updater(time = 1) {
     if (time) {
         requestAnimationFrame(updater)
@@ -3664,11 +4584,14 @@ function updater(time = 1) {
 
     if (!script.user.alive & script.user.alive != user[Object.keys(user)[10]]) {
         startTimer = new Date;
+        if (!set_all_ids(user, world, game, mouse, client)) return;
+        create_craft_rules();
     }
 
     script.user.alive = user[Object.keys(user)[10]];
 
-    // draw(id_tings, unsafeWindow.ctx);
+    if (Settings.debug.show_items.e) draw2(id_tings, unsafeWindow.ctx);
+    else if (Settings.debug.show_sprites.e) draw(id_tings, unsafeWindow.ctx);
 
 
     let i = 22.5;
@@ -3696,19 +4619,19 @@ function updater(time = 1) {
     ctx.restore();
 
     if (script.user.alive) {
-        let gauges = user[Object.keys(user)[29 + 1]]
-        script.world.units = world[Object.keys(world)[4 + 1]]
-        script.world.fast_units = world[Object.keys(world)[5 + 1]]
+        let gauges = user[Keys.gauges];
+        script.world.units = world[Keys.units];
+        script.world.fast_units = world[Keys.fast_units];
         script.user.id = user.id;
-        script.user.uid = user[Object.keys(user)[17]]
-        script.user.gauges.health = Math.floor(gauges[Object.keys(gauges)[1]] * 200)
-        script.user.gauges.hungry = Math.floor(gauges[Object.keys(gauges)[2]] * 100)
-        script.user.gauges.cold = Math.floor(gauges.c * 100) + Math.floor(100 - (gauges[Object.keys(gauges)[5]] * 100))
-        script.user.gauges.water = Math.floor(gauges[Object.keys(gauges)[3]] * 100)
+        script.user.uid = user[Keys.uid];
+        script.user.gauges.health = Math.floor(gauges[Object.keys(gauges)[1]] * 200);
+        script.user.gauges.hungry = Math.floor(gauges[Object.keys(gauges)[2]] * 100);
+        script.user.gauges.cold = Math.floor(gauges.c * 100) + Math.floor(100 - (gauges[Object.keys(gauges)[5]] * 100));
+        script.user.gauges.water = Math.floor(gauges[Object.keys(gauges)[3]] * 100);
 
-        script.user.cam.x = user[Object.keys(user)[28]].x
-        script.user.cam.y = user[Object.keys(user)[28]].y
-        script.user.team = user[Object.keys(user)[21]]
+        script.user.cam.x = user[Keys.cam].x;
+        script.user.cam.y = user[Keys.cam].y;
+        script.user.team = user[Keys.team];
         try {
             let myPlayer = script.world.fast_units[script.user.uid];
         } catch (error) {
@@ -3727,14 +4650,11 @@ function updater(time = 1) {
         if (myPlayer) {
             if (Settings.spectator.e) Settings.spectator.player = myPlayer
         } else {
-            if (Settings.spectator.e && Settings.spectator.player) {
+            if ((Settings.spectator.e || Settings.spectator.is_back) && Settings.spectator.player) {
                 myPlayer = Settings.spectator.player
             }
         }
         mypid = myPlayer[Object.keys(myPlayer)[1]]
-
-
-
 
 
         /*
@@ -3754,7 +4674,7 @@ function updater(time = 1) {
         script.myPlayer.ghost = myPlayer[Object.keys(myPlayer)[64]]
 
         ally = script.user.team.length > 0 ? script.user.team : [script.user.id];
-        units = unit()
+        units = script.world.units;
         if (Settings.gaugesInfo) {
             const r = unsafeWindow.innerWidth / 2;
             const a = unsafeWindow.innerHeight - 50;
@@ -3784,16 +4704,19 @@ function updater(time = 1) {
             ctx.fillText(script.user.gauges.water + "", r + 450 - 100, a - 70);
 
             if (hp > script.lastHeal) {
-                script.lastHealTime = performance.now();
+                script.lastHealTime = timeNow;
             }
             if (food < script.lastHungry) {
-                script.lastTimer = performance.now();
+                script.lastTimer = timeNow;
+                if (timeNow - script.lastHealTime > 6000) {
+                    script.lastHealTime = timeNow;
+                }
             }
 
             let healTimer = Math.round(10 - (timeNow - script.lastHealTime) / 1000);
             let otherTimer = Math.round(5 - (timeNow - script.lastTimer) / 1000);
             if (!isNaN(healTimer)) {
-                if (healTimer > 10 || healTimer < 0) script.lastHealTime = performance.now();
+                if (healTimer > 10 || healTimer < 0) script.lastHealTime = timeNow;
                 ctx.fillStyle = "#69a148";
                 ctx.strokeText(healTimer + "s", r - 150 - 100, a - 40);
                 ctx.fillText(healTimer + "s", r - 150 - 100, a - 40);
@@ -3832,6 +4755,343 @@ function updater(time = 1) {
         //     }
         //     ctx.font = "20px Baloo Paaji";
         // }
+
+        ctx.save();
+        ctx.font = '20px Baloo Paaji';
+        if (Settings.showFly) {
+            for (let i = 0; i < players.length; i++) {
+                if (players[i][fly]) {
+                    ctx.strokeStyle = "black";
+                    ctx.fillStyle = '#3683ff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.strokeText('Fly', script.user.cam.x + players[i].x, script.user.cam.y + players[i].y + 35);
+                    ctx.fillText('Fly', script.user.cam.x + players[i].x, script.user.cam.y + players[i].y + 35);
+                }
+
+            }
+        }
+
+        if (Settings.tracers) {
+            ctx.lineWidth = 2.6;
+            if (Settings.PlayerTracers) {
+                for (let i = 0; i < players.length; i++) {
+                    const pid = players[i][Object.keys(players[i])[1]]
+                    if (pid === script.user.id) continue;
+                    ctx.strokeStyle = isAlly(pid) ? "cyan" : "red";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + players[i].x, script.user.cam.y + players[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.SandwormTracers) {
+                mobs = units[83];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#000000";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.KrakenTracers) {
+                mobs = units[73];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#440b8a";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.SpiderTracers) {
+                mobs = units[68];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.WolfTracers) {
+                mobs = units[67];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#8a0b5e";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.RabbitTracers) {
+                mobs = units[92];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "pink";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.FishTracers) {
+                mobs = units[72];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#f77d72";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.VultureTracers) {
+                mobs = units[75];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#42423c";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.BabyDragonTracers) {
+                mobs = units[79];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#fff";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+            if (Settings.BabyLavaDragonTracers) {
+                mobs = units[80];
+                for (let i = 0; i < mobs.length; i++) {
+                    ctx.strokeStyle = "#eb6200";
+                    ctx.beginPath();
+                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
+                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
+                    ctx.stroke();
+                };
+            }
+        }
+
+        if (Settings.machineInfo) {
+            let machines = units[23];
+            for (let i = 0; i < machines.length; i++) {
+                let owner = world[Keys.players_list][machines[i][Object.keys(machines[i])[1]]];
+                let owner_name = owner[Object.keys(owner)[0]];
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 7;
+                ctx.fillStyle = "white";
+                ctx.strokeText(owner_name, script.user.cam.x + machines[i].x - 25, script.user.cam.y + machines[i].y - 25);
+                ctx.fillText(owner_name, script.user.cam.x + machines[i].x - 25, script.user.cam.y + machines[i].y - 25);
+            }
+        }
+
+        if (Settings.toteminfo) {
+            let totems = units[38];
+            for (let i = 0; i < totems.length; i++) {
+                let owner = world[Keys.players_list][totems[i][Object.keys(totems[i])[1]]];
+                let owner_name = owner[Object.keys(owner)[0]];
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 7;
+                ctx.fillStyle = "white";
+                ctx.strokeText(owner_name, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 25);
+                ctx.fillText(owner_name, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 25);
+
+                ctx.strokeText(totems[i].info >= 16 ? charTotem + totems[i].info % 16 : charTotem + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y);
+                ctx.fillText(totems[i].info >= 16 ? charTotem + totems[i].info % 16 : charTotem + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y);
+
+                ctx.strokeText(totems[i].info >= 16 ? "Lock" : "Open", script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y + 25);
+                ctx.fillText(totems[i].info >= 16 ? "Lock" : "Open", script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y + 25);
+            };
+        }
+        ctx.lineWidth = 8;
+        const deathBoxId = 94;
+        const lootBoxId = 98;
+        if (Settings.boxinfo) {
+            timeNow = Date.now();
+            deathBoxs = units[deathBoxId];
+            for (let i = 0; i < deathBoxs.length; i++) {
+                const box = deathBoxs[i];
+                if (isDeathBox(box.info)) {
+                    if (box.id in deathboxinfo) {
+                        if (deathboxinfo[box.id][1] != box.action) {
+                            if (box.action != 0) { deathboxinfo[box.id][0] += 1; }
+                            deathboxinfo[box.id][1] = box.action;
+                        }
+                    } else {
+                        deathboxinfo[box.id] = [0, 0, timeNow]
+                    }
+                    let count = deathboxinfo[box.id][0];
+                    ctx.strokeStyle = "red";
+                    ctx.fillStyle = "black";
+                    ctx.strokeText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    ctx.fillText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    let hp = 300;
+                    // if (activeUnits[deathBoxId][box.id]) hp = activeUnits[deathBoxId][box.id].hp;
+                    if (!Settings.showHp) hp = count;
+                    ctx.strokeText(`${hp} hp`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.fillText(`${hp} hp`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.strokeText(`${Math.round(2400 - (timeNow - deathboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                    ctx.fillText(`${Math.round(2400 - (timeNow - deathboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                } else {
+                    if (box.id in mobboxinfo) {
+                        if (mobboxinfo[box.id][1] != box.action) {
+                            if (box.action != 0) { mobboxinfo[box.id][0] += 1; }
+                            mobboxinfo[box.id][1] = box.action;
+                        }
+                    } else {
+                        mobboxinfo[box.id] = [0, 0, timeNow]
+                    }
+                    let count = mobboxinfo[box.id][0];
+                    ctx.strokeStyle = "black";
+                    ctx.fillStyle = "white";
+                    ctx.strokeText(`Mob box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    ctx.fillText(`Mob box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
+                    ctx.strokeText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.fillText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
+                    ctx.strokeText(`${Math.round(300 - (timeNow - mobboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                    ctx.fillText(`${Math.round(300 - (timeNow - mobboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
+                }
+            }
+            for (const id in mobboxinfo) {
+                if (timeNow - mobboxinfo[id][2] > 30500) {
+                    delete mobboxinfo[id];
+                }
+            }
+            for (const id in deathboxinfo) {
+                if (timeNow - deathboxinfo[id][2] > 240500) {
+                    delete deathboxinfo[id];
+                }
+            }
+            lootBoxs = units[lootBoxId];
+            for (let i = 0; i < lootBoxs.length; i++) {
+                const box = lootBoxs[i];
+                if (box.id in lootboxsinfo) {
+                    if (lootboxsinfo[box.id][1] != box.action) {
+                        if (box.action != 0) { lootboxsinfo[box.id][0] += 1; }
+                        lootboxsinfo[box.id][1] = box.action;
+                    }
+                } else {
+                    lootboxsinfo[box.id] = [0, 0, timeNow]
+                }
+                let count = lootboxsinfo[box.id][0];
+                ctx.strokeStyle = "black";
+                ctx.fillStyle = "white";
+                ctx.strokeText(`loot`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 5);
+                ctx.fillText(`loot`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 5);
+                ctx.strokeText(`${Math.round(162 - (timeNow - lootboxsinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 13);
+                ctx.fillText(`${Math.round(162 - (timeNow - lootboxsinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 13);
+            }
+            for (const id in lootboxsinfo) {
+                if (timeNow - lootboxsinfo[id][2] > 16300) {
+                    delete lootboxsinfo[id];
+                }
+            }
+        }
+
+        if (Settings.ChestInfo) {
+            chests = units[11];
+            for (let i = 0; i < chests.length; i++) {
+                const chest = chests[i];
+                if (chest.info == 0) {
+                    continue
+                }
+                let img = getImgForChest(chest)
+                if (img.localName == 'img') {   // Прогрузка изображений даже если они не были загружены
+                    if (img[Object.keys(img)[0]] == 0) {
+                        img.src = img.baseURI + img[Object.keys(img)[3]]
+                    }
+                }
+                if (img) ctx.drawImage(img, chest.x + script.user.cam.x - 32, chest.y + script.user.cam.y - 32, 60, 65);
+                ctx.strokeStyle = isAlly(chest[Object.keys(chest)[1]]) ? "#30ab36" : "red";
+                ctx.fillStyle = "black";
+                if (chest.lock) {
+                    ctx.strokeText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 17);
+                    ctx.fillText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 17);
+                }
+                ctx.strokeStyle = "black";
+                ctx.fillStyle = "white";
+                if (Settings.ChestInfo2) {
+                    ctx.font = "15px Baloo Paaji";
+                    ctx.strokeText(`${chest.action / 2 - 1}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 10);
+                    ctx.fillText(`${chest.action / 2 - 1}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 10);
+                }
+                ctx.font = "20px Baloo Paaji";
+                ctx.strokeText('x' + `${chest.info}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 30);
+                ctx.fillText('x' + `${chest.info}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 30);
+            }
+        }
+
+        if (Settings.buildinfo) {
+            for (let i = 0; i < extractor_ids.length; ++i) {
+                const extractorType = extractor_ids[i];
+                const extractors = units[extractorType];
+                if (script.user.alive) {
+                    for (let j = 0; j < extractors.length; j++) {
+                        const extractor = extractors[j];
+                        ctx.strokeStyle = "black";
+                        ctx.fillStyle = "white";
+                        ctx.strokeText(`${extractor.info & 0xFF}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y - 5);
+                        ctx.fillText(`${extractor.info & 0xFF}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y - 5);
+                        ctx.strokeText(`${(extractor.info & 0xFF00) >> 8}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y + 15);
+                        ctx.fillText(`${(extractor.info & 0xFF00) >> 8}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y + 15);
+                    }
+                }
+            }
+
+            mils = units[41];
+            for (let i = 0; i < mils.length; ++i) {
+                const mill = mils[i];
+                let x = mill.info;
+                let b = parseInt(x / 256);
+                x -= b * 256;
+
+                ctx.strokeStyle = "black";
+                ctx.fillStyle = "white";
+                ctx.strokeText(`${x}` + charWheat, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
+                ctx.fillText(`${x}` + charWheat, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
+                ctx.strokeText(`${b}` + charDough, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
+                ctx.fillText(`${b}` + charDough, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
+            }
+
+            ovens = units[43];
+            for (let i = 0; i < ovens.length; ++i) {
+                const oven = ovens[i];
+                let x = oven.info;
+                let b = parseInt(x / 1024);
+                x -= b * 1024;
+                let m = parseInt(x / 32);
+                x -= m * 32;
+
+                ctx.strokeStyle = "black";
+                ctx.fillStyle = "white";
+                ctx.strokeText(`${x}` + charWood, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
+                ctx.fillText(`${x}` + charWood, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
+                ctx.strokeText(`${m}` + charDough, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
+                ctx.fillText(`${m}` + charDough, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
+                ctx.strokeText(`${b}` + charBred, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
+                ctx.fillText(`${b}` + charBred, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
+            }
+        }
+        if (Settings.playerOnTop) {
+            keys = Object.keys(playersOnTop);
+            keys.forEach(key => {
+                if (playersOnTop[key][1] && playersOnTop[key][2].x >= 50) {
+                    try {
+                        playersOnTop[key][3].apply(playersOnTop[key][2], []);
+                        playersOnTop[key][0].apply(playersOnTop[key][2], []);
+                    } catch (error) {
+                        console.error("Error playersOnTop");
+                        Settings.playerOnTop = false;
+                    }
+                    playersOnTop[key][1] = false;
+                }
+            });
+        }
 
         if (Settings.showHp) {
             ctx.save();
@@ -3884,19 +5144,30 @@ function updater(time = 1) {
             ctx.restore();
         }
 
-        ctx.save();
-        ctx.font = '20px Baloo Paaji';
-        if (Settings.showFly) {
-            for (let i = 0; i < players.length; i++) {
-                if (players[i][fly]) {
-                    ctx.strokeStyle = "black";
-                    ctx.fillStyle = '#3683ff';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.strokeText('Fly', script.user.cam.x + players[i].x, script.user.cam.y + players[i].y + 35);
-                    ctx.fillText('Fly', script.user.cam.x + players[i].x, script.user.cam.y + players[i].y + 35);
-                }
+        if (Settings.showHealTimer) {
+            calculateTimers(units);
+        }
 
+        if (Settings.showWeaponTimer) {
+            let now = Date.now();
+            for (let i = 0; i < players.length; i++) {
+                const player = players[i];
+                const pid = player[Object.keys(player)[1]];
+                if (!(pid in weaponPlayers)) {
+                    weaponPlayers[pid] = { time: 0, lastWeapon: -1, type: 0 };
+                }
+                if (player.right != weaponPlayers[pid].lastWeapon) {
+                    weaponPlayers[pid].time = now;
+                    weaponPlayers[pid].lastWeapon = player.right;
+                    weaponPlayers[pid].type = HoldWeapon(player.right, false);
+                }
+                if (weaponPlayers[pid].type != 0) {
+                    if (pid === script.user.id) {
+                        drawPartialCircle(ctx, 50, script.user.cam.x + player.x, script.user.cam.y + player.y, (now - weaponPlayers[pid].time) / 10000, 9);
+                    } else {
+                        drawPartialCircle(ctx, 10, script.user.cam.x + player.x + 43, script.user.cam.y + player.y - 43, (now - weaponPlayers[pid].time) / 10000, 5);
+                    }
+                }
             }
         }
 
@@ -3906,10 +5177,10 @@ function updater(time = 1) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             for (let i = 0; i < players.length; i++) {
-                const pid = players[i][Object.keys(players[i])[1]]
+                const pid = players[i][Object.keys(players[i])[1]];
                 if (pid === script.user.id) continue;
                 if (Settings.showScore) {
-                    score = players[i][Object.keys(players[i])[13]]
+                    score = players[i][Object.keys(players[i])[14]]
                     score = score[Object.keys(score)[13]]
                     if (score > 0) {
                         if (score > 100000) {
@@ -3922,7 +5193,7 @@ function updater(time = 1) {
                     }
                 }
                 if (Settings.showNames) {
-                    let nikcname = players[i][Object.keys(players[i])[13]]
+                    let nikcname = players[i][Object.keys(players[i])[14]]
                     nikcname = nikcname[Object.keys(nikcname)[0]]
                     ctx.strokeText(nikcname, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 70);
                     ctx.fillText(nikcname, script.user.cam.x + players[i].x - 1, script.user.cam.y + players[i].y - 70);
@@ -3930,293 +5201,31 @@ function updater(time = 1) {
             };
         }
 
-        if (Settings.tracers) {
-            ctx.lineWidth = 2.6;
-            if (Settings.PlayerTracers) {
-                for (let i = 0; i < players.length; i++) {
-                    const pid = players[i][Object.keys(players[i])[1]]
-                    if (pid === script.user.id) continue;
-                    ctx.strokeStyle = isAlly(pid) ? "cyan" : "red";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + players[i].x, script.user.cam.y + players[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.SandwormTracers) {
-                mobs = script.world.units[76];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#000000";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.KrakenTracers) {
-                mobs = script.world.units[66];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#440b8a";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.SpiderTracers) {
-                mobs = script.world.units[61];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#ffffff";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.WolfTracers) {
-                mobs = script.world.units[60];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#8a0b5e";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.RabbitTracers) {
-                mobs = script.world.units[80];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "pink";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.FishTracers) {
-                mobs = script.world.units[65];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#f77d72";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.VultureTracers) {
-                mobs = script.world.units[75];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#42423c";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.BabyDragonTracers) {
-                mobs = script.world.units[72];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#fff";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
-            }
-            if (Settings.BabyLavaDragonTracers) {
-                mobs = script.world.units[73];
-                for (let i = 0; i < mobs.length; i++) {
-                    ctx.strokeStyle = "#eb6200";
-                    ctx.beginPath();
-                    ctx.moveTo(script.user.cam.x + myPlayer.x, script.user.cam.y + myPlayer.y);
-                    ctx.lineTo(script.user.cam.x + mobs[i].x, script.user.cam.y + mobs[i].y);
-                    ctx.stroke();
-                };
+        if (Settings.debug.player_action.e) {
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = '#3683ff';
+            for (let i = 0; i < players.length; i++) {
+                ctx.strokeText(players[i].action, script.user.cam.x + players[i].x + 25, script.user.cam.y + players[i].y - 1);
+                ctx.fillText(players[i].action, script.user.cam.x + players[i].x + 25, script.user.cam.y + players[i].y - 1);
             }
         }
 
-        if (Settings.toteminfo) {
-            let totems = script.world.units[29];
-            for (let i = 0; i < totems.length; i++) {
-                ctx.strokeStyle = "black";
-                ctx.lineWidth = 7;
-                ctx.fillStyle = "white";
-                ctx.strokeText(totems[i].info >= 16 ? charTotem + totems[i].info % 16 : charTotem + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 20);
-                ctx.fillText(totems[i].info >= 16 ? charTotem + totems[i].info % 16 : charTotem + totems[i].info, script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y - 20);
+        if (Settings.debug.units_id.e) {
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = 'pink';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i < units.length; i++) {
+                const unit = units[i];
+                for (let j = 0; j < unit.length; j++) {
+                    const one = unit[j];
+                    ctx.strokeText(unit[j].type, script.user.cam.x + unit[j].x, script.user.cam.y + unit[j].y + 35);
+                    ctx.fillText(unit[j].type, script.user.cam.x + unit[j].x, script.user.cam.y + unit[j].y + 35);
 
-                ctx.strokeText(totems[i].info >= 16 ? "Lock" : "Open", script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y + 5);
-                ctx.fillText(totems[i].info >= 16 ? "Lock" : "Open", script.user.cam.x + totems[i].x - 20, script.user.cam.y + totems[i].y + 5);
-            };
-        }
-        ctx.lineWidth = 8;
-        if (Settings.boxinfo) {
-            timeNow = Date.now();
-            deathBoxs = units[82];
-            for (let i = 0; i < deathBoxs.length; i++) {
-                const box = deathBoxs[i];
-                log(box.info, isDeathBox(box.info));
-                if (isDeathBox(box.info)) {
-                    if (box.id in deathboxinfo) {
-                        if (deathboxinfo[box.id][1] != box.action) {
-                            if (box.action != 0) { deathboxinfo[box.id][0] += 1; }
-                            deathboxinfo[box.id][1] = box.action;
-                        }
-                    } else {
-                        deathboxinfo[box.id] = [0, 0, timeNow]
-                    }
-                    let count = deathboxinfo[box.id][0];
-                    ctx.strokeStyle = "red";
-                    ctx.fillStyle = "black";
-                    ctx.strokeText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
-                    ctx.fillText(`Death box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
-                    let hp = 300;
-                    if (activeUnits[82][box.id]) hp = activeUnits[82][box.id].hp;
-                    if (!Settings.showHp) hp = count;
-                    ctx.strokeText(`${hp} hp`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
-                    ctx.fillText(`${hp} hp`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
-                    ctx.strokeText(`${Math.round(2400 - (timeNow - deathboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
-                    ctx.fillText(`${Math.round(2400 - (timeNow - deathboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
-                } else {
-                    if (box.id in mobboxinfo) {
-                        if (mobboxinfo[box.id][1] != box.action) {
-                            if (box.action != 0) { mobboxinfo[box.id][0] += 1; }
-                            mobboxinfo[box.id][1] = box.action;
-                        }
-                    } else {
-                        mobboxinfo[box.id] = [0, 0, timeNow]
-                    }
-                    let count = mobboxinfo[box.id][0];
-                    ctx.strokeStyle = "black";
-                    ctx.fillStyle = "white";
-                    ctx.strokeText(`Mob box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
-                    ctx.fillText(`Mob box`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 15);
-                    ctx.strokeText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
-                    ctx.fillText(`${count}`, box.x + script.user.cam.x - 10, box.y + script.user.cam.y + 28);
-                    ctx.strokeText(`${Math.round(300 - (timeNow - mobboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
-                    ctx.fillText(`${Math.round(300 - (timeNow - mobboxinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 5);
-                }
-            }
-            for (const id in mobboxinfo) {
-                if (timeNow - mobboxinfo[id][2] > 30500) {
-                    delete mobboxinfo[id];
-                }
-            }
-            for (const id in deathboxinfo) {
-                if (timeNow - deathboxinfo[id][2] > 240500) {
-                    delete deathboxinfo[id];
-                }
-            }
-            lootBoxs = units[86];
-            for (let i = 0; i < lootBoxs.length; i++) {
-                const box = lootBoxs[i];
-                if (box.id in lootboxsinfo) {
-                    if (lootboxsinfo[box.id][1] != box.action) {
-                        if (box.action != 0) { lootboxsinfo[box.id][0] += 1; }
-                        lootboxsinfo[box.id][1] = box.action;
-                    }
-                } else {
-                    lootboxsinfo[box.id] = [0, 0, timeNow]
-                }
-                let count = lootboxsinfo[box.id][0];
-                ctx.strokeStyle = "black";
-                ctx.fillStyle = "white";
-                ctx.strokeText(`loot`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 5);
-                ctx.fillText(`loot`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y - 5);
-                ctx.strokeText(`${Math.round(162 - (timeNow - lootboxsinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 13);
-                ctx.fillText(`${Math.round(162 - (timeNow - lootboxsinfo[box.id][2]) / 100) / 10}`, box.x + script.user.cam.x - 20, box.y + script.user.cam.y + 13);
-            }
-            for (const id in lootboxsinfo) {
-                if (timeNow - lootboxsinfo[id][2] > 16300) {
-                    delete lootboxsinfo[id];
                 }
             }
         }
 
-        if (Settings.ChestInfo) {
-            chests = units[11];
-            for (let i = 0; i < chests.length; i++) {
-                const chest = chests[i];
-                if (chest.info == 0) {
-                    continue
-                }
-                let img = getImgForChest(chest)
-                if (img.localName == 'img') {
-                    if (img[Object.keys(img)[0]] == 0) {
-                        img.src = img.baseURI + img[Object.keys(img)[3]]
-                    }
-                }
-                if (img) ctx.drawImage(img, chest.x + script.user.cam.x - 32, chest.y + script.user.cam.y - 32, 60, 65);
-                ctx.strokeStyle = "red";
-                ctx.strokeStyle = chest.ally ? "#30ab36" : "red";
-                ctx.fillStyle = "black";
-                if (chest.lock) {
-                    ctx.strokeText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 17);
-                    ctx.fillText(`L`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y - 17);
-                }
-                ctx.strokeStyle = "black";
-                ctx.fillStyle = "white";
-                if (Settings.ChestInfo2) {
-                    ctx.font = "15px Baloo Paaji";
-                    ctx.strokeText(`${chest.action / 2 - 1}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 10);
-                    ctx.fillText(`${chest.action / 2 - 1}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 10);
-                }
-                ctx.font = "20px Baloo Paaji";
-                ctx.strokeText('x' + `${chest.info}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 30);
-                ctx.fillText('x' + `${chest.info}`, chest.x + script.user.cam.x - 10, chest.y + script.user.cam.y + 30);
-            }
-        }
-
-        if (Settings.buildinfo) {
-            for (let i = 0; i < extractor_ids.length; ++i) {
-                const spikeType = extractor_ids[i];
-                const extractors = units[spikeType];
-                if (script.user.alive) {
-                    for (let j = 0; j < extractors.length; j++) {
-                        const extractor = extractors[j];
-                        ctx.strokeStyle = "black";
-                        ctx.fillStyle = "white";
-                        ctx.strokeText(`${extractor.info & 0xFF}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y - 5);
-                        ctx.fillText(`${extractor.info & 0xFF}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y - 5);
-                        ctx.strokeText(`${(extractor.info & 0xFF00) >> 8}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y + 15);
-                        ctx.fillText(`${(extractor.info & 0xFF00) >> 8}` + 'x', extractor.x + script.user.cam.x - 15, extractor.y + script.user.cam.y + 15);
-                    }
-                }
-            }
-
-            mils = units[32];
-            for (let i = 0; i < mils.length; ++i) {
-                const mill = mils[i];
-                let x = mill.info;
-                let b = parseInt(x / 256);
-                x -= b * 256;
-
-                ctx.strokeStyle = "black";
-                ctx.fillStyle = "white";
-                ctx.strokeText(`${x}` + charWheat, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
-                ctx.fillText(`${x}` + charWheat, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y - 10);
-                ctx.strokeText(`${b}` + charDough, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
-                ctx.fillText(`${b}` + charDough, mill.x + script.user.cam.x - 10, mill.y + script.user.cam.y + 15);
-            }
-
-            ovens = units[34];
-            for (let i = 0; i < ovens.length; ++i) {
-                const oven = ovens[i];
-                let x = oven.info;
-                let b = parseInt(x / 1024);
-                x -= b * 1024;
-                let m = parseInt(x / 32);
-                x -= m * 32;
-
-                ctx.strokeStyle = "black";
-                ctx.fillStyle = "white";
-                ctx.strokeText(`${x}` + charWood, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
-                ctx.fillText(`${x}` + charWood, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 25);
-                ctx.strokeText(`${m}` + charDough, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
-                ctx.fillText(`${m}` + charDough, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y - 5);
-                ctx.strokeText(`${b}` + charBred, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
-                ctx.fillText(`${b}` + charBred, oven.x + script.user.cam.x - 10, oven.y + script.user.cam.y + 15);
-            }
-        }
         ctx.restore();
     } else {
         let lootboxsinfo = {};
@@ -4227,24 +5236,42 @@ function updater(time = 1) {
 
 function loadSpectator() {
     requestAnimationFrame(loadSpectator);
-    if (client[Object.keys(client)[0]]) {
-        if (!client[Object.keys(client)[0]]["current"]) {
-            client[Object.keys(client)[0]]["current"] = true;
-            client[Object.keys(client)[0]].send = new Proxy(client[Object.keys(client)[0]].send, {
+    if (client[Keys.webSocket]) {
+        if (!client[Keys.webSocket]["current"]) {
+            client[Keys.webSocket]["current"] = true;
+            client[Keys.webSocket].send = new Proxy(client[Keys.webSocket].send, {
                 apply: function (target, thisArg, args) {
-                    // log('b', args[0])
+                    // log('b', args);
 
-                    if (args[0][0] == 11 && Settings.spectator.e && !Settings.PathFinder.e && !Settings.Autofarm.e) {
+                    if (args[0][0] == packets.move && Settings.spectator.e && !Settings.PathFinder.e && !Settings.Autofarm.e) {
                         return
                     }
 
                     if (typeof args[0] == 'string') {
                         const obj = JSON.parse(args[0]);
-                        if (obj[0] == 28) {
+                        if (obj[0] == 0) {
                             mp = script.world.fast_units[script.user.uid];
                             if (mp) {
                                 Settings.antiKick.dx = Math.round(obj[1] - mp.x)
                                 Settings.antiKick.dy = Math.round(obj[2] - mp.y)
+                            }
+                        }
+
+                        if (obj[0] == packets.recycle) {
+                            Settings.AutoRecycle.lastrecycle = obj[1];
+                            log("new recycle " + Settings.AutoRecycle.lastrecycle);
+                        }
+                        if (obj[0] == packets.craft) {
+                            Settings.AutoCraft.lastcraft = obj[1];
+                            send([packets.equip, 46]);
+
+                            if (!Crafting.isCraft) {
+                                log("Craft", obj[1]);
+                                Crafting.isCraft = true;
+                                Crafting.id = Number(obj[1]);
+                                Crafting.old_count = realInventoryHas(Crafting.id)[1];
+                                if (!Crafting.old_count) Crafting.old_count = 0;
+                                Crafting.now = Date.now();
                             }
                         }
                     }
@@ -4256,7 +5283,7 @@ function loadSpectator() {
                 if (Settings.spectator.e) return
                 oldFunction.apply(this, arguments);
             }
-            const userCam = user[Object.keys(user)[28]];
+            const userCam = user[Keys.cam];
             const moveCam = userCam[Object.keys(userCam)[12]];
             userCam[Object.keys(userCam)[12]] = function () {
                 moveCam.apply(this, arguments);
@@ -4309,11 +5336,10 @@ function antiKick() {
     if (!Settings.antiKick.e) return
     if (!script.user.alive) return
     if (Settings.antiKick.visible) return
-    let mp = script.world.fast_units[script.user.uid];
     timeNow = Date.now();
 
-    if (timeNow - Settings.antiKick.timeout > 200) {
-        send([28, mp.x + Settings.antiKick.dx, mp.y + Settings.antiKick.dy]);
+    if (timeNow - Settings.antiKick.timeout > 5 * 1000) {
+        send([packets.Iamhere]);
         Settings.antiKick.timeout = timeNow;
     }
     updater(0)
@@ -4326,6 +5352,8 @@ function mainscript() {
 
     PathFinder();
 
+    updateActionsCraftHelper();
+
 
     if (Settings.showHpPlayer || Settings.showHp) calculateHp(script.world.units);
 
@@ -4336,14 +5364,14 @@ function mainscript() {
     }
 
     if (Settings.AutoBreadPut.e) {
-        var mils = units[32];
+        var mils = units[41];
         for (let i = 0; i < mils.length; ++i) {
             if (getdist(script.myPlayer, mils[i]) <= 300) {
                 const pid = mils[i][Object.keys(mils[i])[1]];
                 send([packets.millPut, 10, pid, mils[i].id]);
             }
         }
-        var ovens = units[34];
+        var ovens = units[43];
         for (let i = 0; i < ovens.length; ++i) {
             if (getdist(script.myPlayer, ovens[i]) <= 300) {
                 const pid = ovens[i][Object.keys(ovens[i])[1]];
@@ -4353,14 +5381,14 @@ function mainscript() {
         }
     }
     if (Settings.AutoBreadTake.e || Settings.AutoSteal.e) {
-        var mils = units[32];
+        var mils = units[41];
         for (let i = 0; i < mils.length; ++i) {
             if (getdist(script.myPlayer, mils[i]) <= 300) {
                 const pid = mils[i][Object.keys(mils[i])[1]];
                 send([packets.millTake, pid, mils[i].id]);
             }
         }
-        var ovens = units[34];
+        var ovens = units[43];
         for (let i = 0; i < ovens.length; ++i) {
             if (getdist(script.myPlayer, ovens[i]) <= 300) {
                 const pid = ovens[i][Object.keys(ovens[i])[1]];
@@ -4410,7 +5438,7 @@ function mainscript() {
     }
 
     if (Settings.AutoTotem.e) {
-        const tt = units[29];
+        const tt = units[38];
         for (let i = 0; i < tt.length; ++i) {
             if (getdist(script.myPlayer, tt[i]) <= 300) {
                 const pid = tt[i][Object.keys(tt[i])[1]]
@@ -4434,8 +5462,39 @@ function mainscript() {
                 Settings.AutoCraft.e = false
             }
         } else {
-            if (script.myPlayer.right != 28) send([packets.equip, 28]);
+            if (script.myPlayer.right != 46) send([packets.equip, 46]);
             send([packets.craft, Settings.AutoCraft.lastcraft]);
+        }
+    }
+
+    if (Crafting.isCraft) {
+        let realInv = realInventoryHas(Crafting.id);
+        if (realInv[0] && realInv[1] > Crafting.old_count || Date.now() - Crafting.now > 10000) {
+            Crafting.now = Date.now();
+            Crafting.isCraft = false;
+        }
+    }
+
+    if (script.user.alive && Settings.SmartCraft.e) {
+        if (Settings.AutoCraft.s && script.user.gauges.hungry < 60) {
+            let isEated = false
+            for (const item of foodItems) {
+                if (inventoryHas(item)[0]) {
+                    send([packets.equip, item])
+                    isEated = true;
+                    break
+                }
+            }
+            if (!isEated && Settings.AutoCraft.s) {
+                showalert("AutoCraft disabled. No food", 5000)
+                Settings.AutoCraft.e = false
+            }
+        } else {
+            if (!Crafting.isCraft) {
+                let craftId = getCraftId(craft_tree);
+                if (script.myPlayer.right != 46) send([packets.equip, 46]);
+                if (craftId != -1) send([packets.craft, craftId]);
+            }
         }
     }
 
@@ -4493,22 +5552,22 @@ function mainscript() {
             var CurrentSpike = SpikeP[i];
             switch (CurrentSpike) {
                 case "Reidite Spike":
-                    CurrentSpike = 219;
+                    CurrentSpike = 329;
                     break;
                 case "Amethyst Spike":
-                    CurrentSpike = 123;
+                    CurrentSpike = 214;
                     break;
                 case "Diamond Spike":
-                    CurrentSpike = 170; //
+                    CurrentSpike = 272; //
                     break;
                 case "Gold Spike":
-                    CurrentSpike = 169; //
+                    CurrentSpike = 271; //
                     break;
                 case "Stone Spike":
-                    CurrentSpike = 168; //
+                    CurrentSpike = 270; //
                     break;
                 case "Wood Wall":
-                    CurrentSpike = 162;
+                    CurrentSpike = 264;
                     break;
                 case "Nothing":
                     CurrentSpike = -1;
@@ -4531,8 +5590,30 @@ function mainscript() {
             }
         };
         if (Settings.AutoBridge) {
-            send([packets.placeBuild, 125, (angle) % 255, 0]);
+            send([packets.placeBuild, 216, (angle) % 255, 0]);
         }
+    }
+
+    if (script.user.alive && Ids.is_set) {
+        let players = unit()[0];
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            const pid = p[Object.keys(p)[1]]
+            if (isAlly(pid)) continue;
+            if (p.text.includes("pls " + fly2)) {
+                client[Keys.movement](0);
+                send([packets.equip, 7]);
+            }
+        }
+    }
+
+    if (script.user.alive && Ids.is_set) {
+        if (Settings.AutoShop.wood.e) buyResMax(0);
+        if (Settings.AutoShop.stone.e) buyResMax(1);
+        if (Settings.AutoShop.gold.e) buyResMax(2);
+        if (Settings.AutoShop.diamond.e) buyResMax(3);
+        if (Settings.AutoShop.amethyst.e) buyResMax(4);
+        if (Settings.AutoShop.reidite.e) buyResMax(5);
     }
 }
 
@@ -4553,16 +5634,6 @@ function circleAngle(t, e, i, s, n) {
 }
 
 
-function recycle() {
-
-    let rec = Object.keys(client)[116];
-    client[rec] = (id) => {
-        Settings.AutoRecycle.lastrecycle = id
-        send([packets.recycle, id]);
-    };
-
-}
-
 
 function resetGraphics() {
     if (!Settings.FPSBoost.e) { return }
@@ -4575,6 +5646,7 @@ function resetGraphics() {
     });
 
     divLow.dispatchEvent(mouseUpEvent);
+    log('resetGraphics');
     setTimeout(() => { divHigh.dispatchEvent(mouseUpEvent); }, 0)
 }
 
@@ -4582,19 +5654,20 @@ function resetGraphics() {
 
 function main() {
     colors()
-    autoBook()
+    // autoBook() // Сделан по другому (см loadSpectator)
+    // recycle()  // Сделан по другому (см loadSpectator)
     blizzard()
     updater()
-    recycle()
     aimbot()
     autofarm()
     setTimeout(loadFog, 100)
     setTimeout(loadRoof, 150)
     setTimeout(loadXray, 300)
-    // autoresp()   // not work
+    setTimeout(disable_exapush_popup, 1000)
+    autoresp()
     loadSpectator()
 
-    // SwordInChest()   // not work
+    // SwordInChest()   // not work (пофиксили на уровне сервера)
 
     setInterval(() => {
         mainscript()
@@ -4602,11 +5675,11 @@ function main() {
 
     setInterval(() => {
         antiKick()
-    }, 100);
+    }, 500);
 
     setInterval(() => {
         resetGraphics()
-    }, 1000 * 60 * 5);   // 5 min.
+    }, 1000 * 60 * 3);   // 3 min.
 }
 
 let ready_ = 0;
@@ -4627,5 +5700,4 @@ function initialize() {
 }
 
 initId = setInterval(initialize, 1500);
-
 
